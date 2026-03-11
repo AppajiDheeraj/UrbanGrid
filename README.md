@@ -64,6 +64,41 @@ This workflow represents how UrbanGrid manages infrastructure issues from citize
 
 ---
 
+## Development Setup
+
+### Prerequisites
+
+* Node.js 18+
+* npm 9+
+
+### Install Dependencies
+
+```bash
+npm install
+```
+
+### Run Development Servers
+
+```bash
+npm run dev
+```
+
+### Run Only Frontend
+
+```bash
+npm run dev:frontend
+```
+
+### Run Only Backend
+
+```bash
+npm run dev:backend
+```
+
+The frontend runs on http://localhost:5173 and the backend API runs on http://localhost:5000.
+
+---
+
 ## Database Design
 
 UrbanGrid uses a relational database structure containing entities such as:
