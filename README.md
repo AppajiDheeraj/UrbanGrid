@@ -70,6 +70,7 @@ This workflow represents how UrbanGrid manages infrastructure issues from citize
 
 * Node.js 18+
 * npm 9+
+* MySQL 8+
 
 ### Install Dependencies
 
@@ -96,6 +97,17 @@ npm run dev:backend
 ```
 
 The frontend runs on http://localhost:5173 and the backend API runs on http://localhost:5000.
+
+### MySQL Setup
+
+Run the SQL scripts before starting backend:
+
+```bash
+mysql -u root -p < backend/sql/schema.sql
+mysql -u root -p < backend/sql/seed.sql
+```
+
+Default seeded login password for all demo users is `Admin@123`.
 
 ---
 

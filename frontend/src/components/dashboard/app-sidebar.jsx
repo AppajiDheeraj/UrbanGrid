@@ -1,61 +1,57 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { Separator } from "@/components/ui/separator";
 import {
     Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarHeader, SidebarMenuItem, SidebarMenu, SidebarMenuButton, useSidebar
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { BotIcon, SettingsIcon, StarIcon, VideoIcon } from "lucide-react";
+import { CircleUserRoundIcon, LayoutDashboardIcon, SettingsIcon } from "lucide-react";
 import { DashboardUserButton } from "./dashboard-user-button";
+import { useAuth } from "@/contexts/AuthContext";
 
-const firstSection = [
-    {
-        icon: VideoIcon,
-        label: "Meetings",
-        href: "/meetings"
-    },
-    {
-        icon: BotIcon,
-        label: "Agents",
-        href: "/agents"
-    },
-    {
-        icon: SettingsIcon,
-        label: "Settings",
-        href: "/settings"
-    }
-]
-
-const secondSection = [
-    {
-        icon: StarIcon,
-        label: "Upgrade",
-        href: "/upgrade"
-    }
-]
+const roleLabelMap = {
+    citizen: "Resident",
+    admin: "Administrator",
+    ministry_officer: "Ministry Officer",
+    department_head: "Department Head",
+    senior_official: "Senior Official",
+    contractor: "Contractor",
+    regional_manager: "Regional Manager"
+};
 
 export const DashboardSidebar = () => {
-    const [pathname, setPathname] = useState(() => window.location.pathname);
+    const { user } = useAuth();
+    const location = useLocation();
     const { state } = useSidebar();
     const isCollapsed = state === "collapsed";
+    const pathname = location.pathname;
 
-    useEffect(() => {
-        const handleLocationChange = () => setPathname(window.location.pathname);
-        window.addEventListener("popstate", handleLocationChange);
-        window.addEventListener("hashchange", handleLocationChange);
-        return () => {
-            window.removeEventListener("popstate", handleLocationChange);
-            window.removeEventListener("hashchange", handleLocationChange);
-        };
-    }, []);
+    const menuItems = [
+        {
+            icon: LayoutDashboardIcon,
+            label: "Dashboard",
+            href: "/dashboard"
+        },
+        {
+            icon: CircleUserRoundIcon,
+            label: "Profile",
+            href: "/profile"
+        },
+        {
+            icon: SettingsIcon,
+            label: "Settings",
+            href: "/settings"
+        }
+    ];
+
     return (
         <Sidebar>
             <SidebarHeader className="text-sidebar-accent-foreground">
                 {!isCollapsed && (
-                    <a href="/" className="flex items-center gap-2 px-2 pt-2">
+                    <Link to="/" className="flex items-center gap-2 px-2 pt-2">
                         <p className="text-2xl font-semibold">Urban Grid</p>
-                    </a>
+                    </Link>
                 )}
             </SidebarHeader>
             <div className="px-4 py-2">
@@ -65,7 +61,7 @@ export const DashboardSidebar = () => {
                 <SidebarGroup>
                     <SidebarGroupContent>
                         <SidebarMenu>
-                            {firstSection.map((item) => (
+                            {menuItems.map((item) => (
                                 <SidebarMenuItem key={item.href}>
                                     <SidebarMenuButton asChild className={cn(
                                         "h-10 px-3 text-sidebar-foreground hover:bg-white/5",
@@ -74,12 +70,12 @@ export const DashboardSidebar = () => {
                                     )}
                                         isActive={pathname === item.href}
                                     >
-                                        <a href={item.href} className={cn("flex items-center gap-3", isCollapsed && "justify-center")}> 
+                                        <Link to={item.href} className={cn("flex items-center gap-3", isCollapsed && "justify-center")}>
                                             <item.icon size={20} className="text-sidebar-foreground" />
                                             <span className={cn("text-sm font-medium tracking-tight", isCollapsed && "hidden")}>
                                                 {item.label}
                                             </span>
-                                        </a>
+                                        </Link>
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>
                             ))}
@@ -91,26 +87,12 @@ export const DashboardSidebar = () => {
                 </div>
                 <SidebarGroup>
                     <SidebarGroupContent>
-                        <SidebarMenu>
-                            {secondSection.map((item) => (
-                                <SidebarMenuItem key={item.href}>
-                                    <SidebarMenuButton asChild className={cn(
-                                        "h-10 px-3 text-sidebar-foreground hover:bg-white/5",
-                                        isCollapsed && "justify-center px-0",
-                                        pathname === item.href && "bg-white/10"
-                                    )}
-                                        isActive={pathname === item.href}
-                                    >
-                                        <a href={item.href} className={cn("flex items-center gap-3", isCollapsed && "justify-center")}> 
-                                            <item.icon size={20} className="text-sidebar-foreground" />
-                                            <span className={cn("text-sm font-medium tracking-tight", isCollapsed && "hidden")}>
-                                                {item.label}
-                                            </span>
-                                        </a>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                            ))}
-                        </SidebarMenu>
+                        {!isCollapsed && (
+                            <div className="rounded-lg border border-border/30 bg-white/5 p-3 text-xs text-sidebar-foreground/90">
+                                <p className="font-semibold">Role</p>
+                                <p className="mt-1">{roleLabelMap[user?.role] || "User"}</p>
+                            </div>
+                        )}
                     </SidebarGroupContent>
                 </SidebarGroup>
             </SidebarContent>

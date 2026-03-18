@@ -32,7 +32,7 @@ export default function LoginPage() {
             <p className="text-lg">
               "This tool has saved us countless hours of manual review. The AI-powered insights are a game-changer."
             </p>
-            <footer className="text-sm text-muted-foreground">Sofia Davis, Product Manager</footer>
+            <footer className="text-sm text-muted-foreground">Aryan Bokolia, Student</footer>
           </blockquote>
         </div>
       </div>
