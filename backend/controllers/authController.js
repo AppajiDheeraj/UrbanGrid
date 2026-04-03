@@ -296,6 +296,35 @@ const authController = {
     }
   },
 
+  logout: async (req, res) => {
+    res.json({ message: 'Logout successful' });
+  },
+
+  refresh: async (req, res) => {
+    try {
+      const user = await getAuthUserById(req.user.id);
+
+      if (!user || !user.isActive) {
+        return res.status(401).json({ message: 'User not authorized' });
+      }
+
+      res.json({
+        message: 'Token refreshed',
+        token: generateToken(user.id),
+        user: {
+          id: user.id,
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          isEmailVerified: user.isEmailVerified
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  },
+
   getMe: async (req, res) => {
     try {
       const user = await getUserProfileById(req.user.id);
