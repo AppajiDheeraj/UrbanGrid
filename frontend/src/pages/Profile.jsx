@@ -24,6 +24,7 @@ export default function ProfilePage() {
     name: "",
     email: "",
     role: "",
+    wardNo: "",
     phone: "",
     address: ""
   });
@@ -39,6 +40,7 @@ export default function ProfilePage() {
           name: data.profile?.name || "",
           email: data.profile?.email || "",
           role: data.profile?.role || "",
+          wardNo: data.profile?.wardNo || "",
           phone: data.profile?.phone || "",
           address: data.profile?.address || ""
         });
@@ -68,7 +70,8 @@ export default function ProfilePage() {
       await authAPI.updateProfile({
         name: form.name,
         phone: form.phone,
-        address: form.address
+        address: form.address,
+        wardNo: form.wardNo
       });
       await refreshMe();
       toast.success("Profile updated");
@@ -105,12 +108,16 @@ export default function ProfilePage() {
               <Input value={roleTitles[form.role] || form.role || "User"} disabled />
             </div>
             <div>
+              <label className="mb-2 block text-sm font-medium">Ward No</label>
+              <Input name="wardNo" value={form.wardNo} onChange={onChange} disabled={loading} placeholder="Enter ward number" />
+            </div>
+            <div>
               <label className="mb-2 block text-sm font-medium">Phone</label>
               <Input name="phone" value={form.phone} onChange={onChange} disabled={loading} />
             </div>
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium">Address</label>
+            <label className="mb-2 block text-sm font-medium">Address / Area</label>
             <Input name="address" value={form.address} onChange={onChange} disabled={loading} />
           </div>
           <Button type="submit" disabled={loading || saving}>

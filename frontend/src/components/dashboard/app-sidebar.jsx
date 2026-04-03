@@ -6,7 +6,7 @@ import {
     Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarHeader, SidebarMenuItem, SidebarMenu, SidebarMenuButton, useSidebar
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { CircleUserRoundIcon, LayoutDashboardIcon, SettingsIcon } from "lucide-react";
+import { CircleUserRoundIcon, LayoutDashboardIcon, PlusCircleIcon, SettingsIcon } from "lucide-react";
 import { DashboardUserButton } from "./dashboard-user-button";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -28,6 +28,11 @@ export const DashboardSidebar = () => {
     const pathname = location.pathname;
 
     const menuItems = [
+        ...(user?.role === "citizen" ? [{
+            icon: PlusCircleIcon,
+            label: "File Complaint",
+            href: "/complaints/new"
+        }] : []),
         {
             icon: LayoutDashboardIcon,
             label: "Dashboard",
@@ -91,6 +96,8 @@ export const DashboardSidebar = () => {
                             <div className="rounded-lg border border-border/30 bg-white/5 p-3 text-xs text-sidebar-foreground/90">
                                 <p className="font-semibold">Role</p>
                                 <p className="mt-1">{roleLabelMap[user?.role] || "User"}</p>
+                                <p className="mt-3 font-semibold">Ward No</p>
+                                <p className="mt-1">{user?.wardNo || user?.ward_no || "N/A"}</p>
                             </div>
                         )}
                     </SidebarGroupContent>

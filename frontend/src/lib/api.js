@@ -28,9 +28,11 @@ export const citizenAPI = {
   submitComplaint: (formData) => api.post('/citizen/complaints', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
+  getWardComplaints: () => api.get('/citizen/complaints/ward'),
   getMyComplaints: () => api.get('/citizen/complaints/my'),
   getComplaint: (id) => api.get(`/citizen/complaints/${id}`),
   trackStatus: (id) => api.get(`/citizen/complaints/${id}/status`),
+  voteComplaint: (id, payload) => api.post(`/citizen/complaints/${id}/vote`, payload),
 };
 
 export const adminAPI = {
@@ -67,9 +69,31 @@ export const approvalAPI = {
   getHistory: () => api.get('/approvals/history'),
 };
 
+export const projectAPI = {
+  getProjects: () => api.get('/projects'),
+  getProject: (id) => api.get(`/projects/${id}`),
+  getProgressHistory: (id) => api.get(`/projects/${id}/progress`),
+  getMilestones: (id) => api.get(`/projects/${id}/milestones`),
+  updateMilestones: (id, payload) => api.put(`/projects/${id}/milestones`, payload),
+  verifyCompletion: (id, formData) => api.post(`/projects/${id}/verify`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+};
+
 export const regionAPI = {
   getProjects: () => api.get('/region/projects'),
   getComplaints: () => api.get('/region/complaints'),
+};
+
+export const reportAPI = {
+  generate: (payload) => api.post('/admin/reports/generate', payload),
+  list: (params) => api.get('/admin/reports', { params }),
+  get: (id) => api.get(`/admin/reports/${id}`),
+};
+
+export const alertAPI = {
+  list: (params) => api.get('/admin/alerts', { params }),
+  resolve: (id) => api.patch(`/admin/alerts/${id}/resolve`),
 };
 
 export default api;

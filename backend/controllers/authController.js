@@ -33,8 +33,14 @@ const authController = {
         email,
         password,
         role,
+        officialRole,
         phone,
         address,
+        pincode,
+        wardNo,
+        ministryId,
+        departmentId,
+        regionId,
         companyName,
         registrationNumber,
         gstNumber,
@@ -62,12 +68,27 @@ const authController = {
         return res.status(400).json({ message: 'User already exists' });
       }
 
-      const allowedRoles = ['citizen', 'contractor'];
-      const userRole = role || 'citizen';
+      const allowedRoles = [
+        'citizen',
+        'contractor',
+        'admin',
+        'ministry_officer',
+        'department_head',
+        'senior_official',
+        'regional_manager'
+      ];
+      const normalizedRole = String(role || '').trim().toLowerCase();
+      const normalizedOfficialRole = String(officialRole || '').trim().toLowerCase();
+      const userRole =
+        normalizedRole === 'government'
+          ? (normalizedOfficialRole || 'ministry_officer')
+          : (normalizedRole || normalizedOfficialRole || 'citizen');
 
       if (!allowedRoles.includes(userRole)) {
         return res.status(403).json({ message: 'Invalid role for registration' });
       }
+
+      const normalizedWardNo = wardNo ? String(wardNo).trim() : null;
 
       const userId = await withTransaction(async (tx) => {
         if (userRole === 'contractor') {
@@ -93,20 +114,30 @@ const authController = {
               email,
               password,
               role,
+              ministry_id,
+              department_id,
+              region_id,
               phone,
               address,
-              is_email_verified,
-              email_verification_token
+              pincode,
+            ward_no,
+            is_email_verified,
+            email_verification_token
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `,
           [
             name.trim(),
             normalizedEmail,
             hashedPassword,
             userRole,
+            ministryId ? Number(ministryId) : null,
+            departmentId ? Number(departmentId) : null,
+            regionId ? Number(regionId) : null,
             phone?.trim() || null,
             address?.trim() || null,
+            pincode?.trim() || null,
+            normalizedWardNo,
             0,
             crypto.randomBytes(32).toString('hex')
           ]
@@ -141,14 +172,15 @@ const authController = {
 
       res.status(201).json({
         message: 'User registered successfully. Please check your email for verification.',
-        user: {
-          id: user.id,
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          isEmailVerified: user.isEmailVerified
-        },
+          user: {
+            id: user.id,
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            wardNo: user.wardNo || null,
+            isEmailVerified: user.isEmailVerified
+          },
         token: generateToken(user.id)
       });
     } catch (error) {
@@ -247,14 +279,15 @@ const authController = {
 
       res.json({
         message: 'Login successful',
-        user: {
-          id: user.id,
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          isEmailVerified: user.isEmailVerified
-        },
+          user: {
+            id: user.id,
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            wardNo: user.wardNo || null,
+            isEmailVerified: user.isEmailVerified
+          },
         token: generateToken(user.id)
       });
     } catch (error) {
@@ -292,8 +325,10 @@ const authController = {
           name: user.name,
           email: user.email,
           role: user.role,
+          wardNo: user.wardNo || '',
           phone: user.phone || '',
           address: user.address || '',
+          pincode: user.pincode || '',
           ministry: user.ministry,
           department: user.department,
           region: user.region,
@@ -307,7 +342,7 @@ const authController = {
 
   updateProfile: async (req, res) => {
     try {
-      const { name, phone, address } = req.body;
+      const { name, phone, address, pincode, wardNo } = req.body;
       const updates = [];
       const params = [];
 
@@ -324,6 +359,16 @@ const authController = {
       if (typeof address === 'string') {
         updates.push('address = ?');
         params.push(address.trim() || null);
+      }
+
+      if (typeof pincode === 'string') {
+        updates.push('pincode = ?');
+        params.push(pincode.trim() || null);
+      }
+
+      if (typeof wardNo === 'string') {
+        updates.push('ward_no = ?');
+        params.push(wardNo.trim() || null);
       }
 
       if (!updates.length) {

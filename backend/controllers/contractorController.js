@@ -1,4 +1,5 @@
 const { query, queryOne, run, withTransaction } = require('../utils/sql');
+const { createAlert } = require('../utils/alerts');
 const {
   mapTender,
   mapBid,
@@ -9,6 +10,14 @@ const {
   mapMinistry,
   mapSimpleUser
 } = require('../utils/serializers');
+
+const logAlert = async (payload) => {
+  try {
+    await createAlert(payload);
+  } catch (error) {
+    console.error('Failed to create alert:', error.message);
+  }
+};
 
 const contractorController = {
   getAvailableTenders: async (req, res) => {
@@ -349,6 +358,13 @@ const contractorController = {
 
       const progress = await queryOne('SELECT * FROM progress_updates WHERE id = ? LIMIT 1', [progressId]);
 
+      await logAlert({
+        sourceType: 'progress',
+        sourceId: progressId,
+        alertLevel: 'warning',
+        message: `Project ${projectId} progress was updated to ${percentageComplete || 0}%.`
+      });
+
       res.status(201).json({
         message: 'Progress updated successfully',
         progress: mapProgress(progress)
@@ -415,11 +431,21 @@ const contractorController = {
         await tx.run(
           `
             UPDATE complaints
-            SET status = 'completed', updated_at = CURRENT_TIMESTAMP
+            SET
+              status = 'completed',
+              work_completed_at = COALESCE(work_completed_at, NOW()),
+              updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
           `,
           [project.complaint_id]
         );
+      });
+
+      await logAlert({
+        sourceType: 'project',
+        sourceId: projectId,
+        alertLevel: 'warning',
+        message: `Project ${projectId} was marked as completed by the contractor.`
       });
 
       const updatedProject = await queryOne('SELECT * FROM projects WHERE id = ? LIMIT 1', [projectId]);

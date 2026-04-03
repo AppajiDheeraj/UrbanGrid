@@ -25,6 +25,8 @@ const mapSimpleUser = (row, prefix = '') => {
     role: row[`${prefix}role`],
     phone: row[`${prefix}phone`] ?? null,
     address: row[`${prefix}address`] ?? null,
+    pincode: row[`${prefix}pincode`] ?? null,
+    wardNo: row[`${prefix}ward_no`] ?? row[`${prefix}wardNo`] ?? null,
     isActive: row[`${prefix}is_active`] == null ? undefined : Boolean(row[`${prefix}is_active`]),
     isEmailVerified: row[`${prefix}is_email_verified`] == null ? undefined : Boolean(row[`${prefix}is_email_verified`]),
     createdAt: row[`${prefix}created_at`] ?? null,
@@ -252,6 +254,27 @@ const mapVerification = (row, extra = {}) => withId({
   createdAt: row.created_at ?? null
 });
 
+const mapCityReport = (row) => withId({
+  id: row.id,
+  generatedBy: row.generated_by ?? null,
+  reportType: row.report_type,
+  generatedAt: row.generated_at ?? null,
+  reportData: parseJsonObject(row.report_data, {}),
+  createdAt: row.created_at ?? null
+});
+
+const mapAlert = (row) => withId({
+  id: row.id,
+  sourceType: row.source_type,
+  sourceId: row.source_id ?? null,
+  alertLevel: row.alert_level,
+  message: row.message,
+  status: row.status,
+  resolvedAt: row.resolved_at ?? null,
+  resolvedBy: row.resolved_by ?? null,
+  createdAt: row.created_at ?? null
+});
+
 module.exports = {
   mapSimpleUser,
   mapMinistry,
@@ -263,5 +286,7 @@ module.exports = {
   mapBid,
   mapProject,
   mapProgress,
-  mapVerification
+  mapVerification,
+  mapCityReport,
+  mapAlert
 };

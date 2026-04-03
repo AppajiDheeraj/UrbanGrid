@@ -48,6 +48,8 @@ CREATE TABLE IF NOT EXISTS users (
   region_id BIGINT UNSIGNED NULL,
   phone VARCHAR(40) NULL,
   address VARCHAR(255) NULL,
+  pincode VARCHAR(10) NULL,
+  ward_no VARCHAR(20) NULL,
   is_active TINYINT(1) NOT NULL DEFAULT 1,
   is_email_verified TINYINT(1) NOT NULL DEFAULT 0,
   email_verification_token VARCHAR(255) NULL,
@@ -165,6 +167,7 @@ CREATE TABLE IF NOT EXISTS complaints (
   images JSON NULL,
   address VARCHAR(255) NOT NULL,
   pin_code VARCHAR(10) NOT NULL,
+  ward_no VARCHAR(20) NULL,
   region_id BIGINT UNSIGNED NULL,
   latitude DECIMAL(10,7) NULL,
   longitude DECIMAL(10,7) NULL,
@@ -183,6 +186,9 @@ CREATE TABLE IF NOT EXISTS complaints (
   submitted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   reviewed_by BIGINT UNSIGNED NULL,
   reviewed_at DATETIME NULL,
+  official_viewed_at DATETIME NULL,
+  contractor_notified_at DATETIME NULL,
+  work_completed_at DATETIME NULL,
   review_notes TEXT NULL,
   rejection_reason TEXT NULL,
   is_active TINYINT(1) NOT NULL DEFAULT 1,
@@ -210,6 +216,26 @@ CREATE TABLE IF NOT EXISTS complaints (
   CONSTRAINT fk_complaints_reviewed_by
     FOREIGN KEY (reviewed_by) REFERENCES users (id)
     ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS complaint_votes (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  complaint_id BIGINT UNSIGNED NOT NULL,
+  voter_user_id BIGINT UNSIGNED NOT NULL,
+  ward_no VARCHAR(20) NOT NULL,
+  vote_value TINYINT UNSIGNED NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_complaint_votes_complaint_voter (complaint_id, voter_user_id),
+  KEY idx_complaint_votes_complaint_id (complaint_id),
+  KEY idx_complaint_votes_voter_user_id (voter_user_id),
+  CONSTRAINT fk_complaint_votes_complaint
+    FOREIGN KEY (complaint_id) REFERENCES complaints (id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_complaint_votes_voter
+    FOREIGN KEY (voter_user_id) REFERENCES users (id)
+    ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS tenders (
@@ -413,5 +439,39 @@ CREATE TABLE IF NOT EXISTS verifications (
     ON DELETE CASCADE,
   CONSTRAINT fk_verifications_verified_by
     FOREIGN KEY (verified_by) REFERENCES users (id)
+    ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS city_reports (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  generated_by BIGINT UNSIGNED NOT NULL,
+  report_type ENUM('complaints', 'tenders', 'projects', 'progress', 'regional') NOT NULL,
+  generated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  report_data JSON NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_city_reports_generated_by (generated_by),
+  KEY idx_city_reports_report_type (report_type),
+  CONSTRAINT fk_city_reports_generated_by
+    FOREIGN KEY (generated_by) REFERENCES users (id)
+    ON DELETE RESTRICT
+);
+
+CREATE TABLE IF NOT EXISTS alerts (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  source_type ENUM('complaint', 'tender', 'project', 'progress', 'region', 'system') NOT NULL,
+  source_id BIGINT UNSIGNED NULL,
+  alert_level ENUM('warning', 'critical') NOT NULL DEFAULT 'warning',
+  message TEXT NOT NULL,
+  status ENUM('open', 'resolved') NOT NULL DEFAULT 'open',
+  resolved_at DATETIME NULL,
+  resolved_by BIGINT UNSIGNED NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_alerts_source_type (source_type),
+  KEY idx_alerts_status (status),
+  KEY idx_alerts_resolved_by (resolved_by),
+  CONSTRAINT fk_alerts_resolved_by
+    FOREIGN KEY (resolved_by) REFERENCES users (id)
     ON DELETE SET NULL
 );

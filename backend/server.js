@@ -3,7 +3,7 @@ const dotenv = require('dotenv');
 const cors = require('cors');
 const path = require('path');
 const connectDB = require('./config/db');
-const { security, apiLimiter, authLimiter, validateInput } = require('./middleware/validation');
+const { security, apiLimiter, authLimiter, validateInput, sanitizeRequest } = require('./middleware/validation');
 
 dotenv.config();
 
@@ -21,6 +21,15 @@ const app = express();
 const startServer = async () => {
   await connectDB();
 
+// CORS configuration
+const corsOptions = {
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  credentials: true
+};
+
+app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
+
 // Security middleware
 app.use(security);
 
@@ -29,17 +38,12 @@ app.use('/api/', apiLimiter);
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 
-// CORS configuration
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-  credentials: true
-}));
-
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Input validation
 app.use(validateInput);
+app.use(sanitizeRequest);
 
 // Static files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -70,7 +74,7 @@ app.use('/api/projects', require('./routes/project'));
 app.use('/api/region', require('./routes/region'));
 
 // 404 handler
-app.use('*', (req, res) => {
+app.use((req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
 

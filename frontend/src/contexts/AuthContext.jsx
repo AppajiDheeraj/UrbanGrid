@@ -76,7 +76,7 @@ export const AuthProvider = ({ children }) => {
               token,
             },
           });
-        } catch (error) {
+        } catch {
           localStorage.removeItem('token');
           dispatch({ type: 'LOGOUT' });
         }
@@ -105,7 +105,14 @@ export const AuthProvider = ({ children }) => {
         type: 'LOGIN_FAILURE',
         payload: error.response?.data?.message || 'Login failed',
       });
-      return { success: false, error: error.response?.data?.message };
+      return {
+        success: false,
+        error:
+          error.response?.data?.message ||
+          (error.code === 'ERR_NETWORK'
+            ? 'Cannot reach the backend at http://localhost:5000'
+            : error.message || 'Login failed')
+      };
     }
   };
 
@@ -125,7 +132,14 @@ export const AuthProvider = ({ children }) => {
         type: 'LOGIN_FAILURE',
         payload: error.response?.data?.message || 'Registration failed',
       });
-      return { success: false, error: error.response?.data?.message };
+      return {
+        success: false,
+        error:
+          error.response?.data?.message ||
+          (error.code === 'ERR_NETWORK'
+            ? 'Cannot reach the backend at http://localhost:5000'
+            : error.message || 'Registration failed')
+      };
     }
   };
 
@@ -138,7 +152,7 @@ export const AuthProvider = ({ children }) => {
       const response = await authAPI.getMe();
       dispatch({ type: 'SET_USER', payload: response.data.user });
       return response.data.user;
-    } catch (error) {
+    } catch {
       localStorage.removeItem('token');
       dispatch({ type: 'LOGOUT' });
       return null;

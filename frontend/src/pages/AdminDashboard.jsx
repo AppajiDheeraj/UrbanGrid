@@ -152,7 +152,7 @@ const AdminDashboard = () => {
               <Button 
                 className="w-full justify-start" 
                 variant="outline"
-                onClick={() => window.location.href = '/admin/pending-complaints'}
+                onClick={() => window.location.href = '/dashboard'}
               >
                 <Clock className="h-4 w-4 mr-2" />
                 Review Pending Complaints
@@ -160,7 +160,7 @@ const AdminDashboard = () => {
               <Button 
                 className="w-full justify-start" 
                 variant="outline"
-                onClick={() => window.location.href = '/admin/all-complaints'}
+                onClick={() => window.location.href = '/dashboard'}
               >
                 <FileText className="h-4 w-4 mr-2" />
                 View All Complaints
@@ -168,7 +168,7 @@ const AdminDashboard = () => {
               <Button 
                 className="w-full justify-start" 
                 variant="outline"
-                onClick={() => window.location.href = '/admin/reports'}
+                onClick={() => window.location.href = '/dashboard'}
               >
                 <TrendingUp className="h-4 w-4 mr-2" />
                 Generate Reports

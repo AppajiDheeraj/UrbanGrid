@@ -1,6 +1,5 @@
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
-const xss = require('xss-clean');
 const hpp = require('hpp');
 
 const apiLimiter = rateLimit({
@@ -17,6 +16,7 @@ const authLimiter = rateLimit({
   message: 'Too many authentication attempts, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.method === 'OPTIONS',
 });
 
 const validateInput = (req, res, next) => {
@@ -41,8 +41,41 @@ const validateInput = (req, res, next) => {
   next();
 };
 
+const sanitizeInput = (value) => {
+  if (Array.isArray(value)) {
+    return value.map(sanitizeInput);
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nestedValue]) => [key, sanitizeInput(nestedValue)])
+    );
+  }
+
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  return value
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .trim();
+};
+
+const sanitizeRequest = (req, res, next) => {
+  if (req.body && typeof req.body === 'object') {
+    req.body = sanitizeInput(req.body);
+  }
+
+  if (req.params && typeof req.params === 'object') {
+    req.params = sanitizeInput(req.params);
+  }
+
+  next();
+};
+
 const validatePinCode = (req, res, next) => {
-  const { pinCode } = req.body;
+  const { pinCode } = req.body || {};
   if (pinCode && (!/^\d{6}$/.test(pinCode))) {
     return res.status(400).json({ message: 'Invalid pin code format' });
   }
@@ -50,7 +83,7 @@ const validatePinCode = (req, res, next) => {
 };
 
 const validateCoordinates = (req, res, next) => {
-  const { latitude, longitude } = req.body;
+  const { latitude, longitude } = req.body || {};
   if (latitude && (isNaN(latitude) || latitude < -90 || latitude > 90)) {
     return res.status(400).json({ message: 'Invalid latitude' });
   }
@@ -73,12 +106,12 @@ module.exports = {
   apiLimiter,
   authLimiter,
   validateInput,
+  sanitizeRequest,
   validatePinCode,
   validateCoordinates,
   validateBudget,
   security: [
     helmet(),
-    xss(),
     hpp(),
   ]
 };

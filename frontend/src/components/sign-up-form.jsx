@@ -19,7 +19,8 @@ export function SignUpForm({ className, ...props }) {
   const navigate = useNavigate();
   const { register, loading, clearError } = useAuth();
   const [submitting, setSubmitting] = useState(false);
-  const [role, setRole] = useState("citizen");
+  const [accountType, setAccountType] = useState("citizen");
+  const [officialRole, setOfficialRole] = useState("ministry_officer");
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -31,13 +32,31 @@ export function SignUpForm({ className, ...props }) {
       name: String(form.get("name") || "").trim(),
       email: String(form.get("email") || "").trim(),
       password: String(form.get("password") || ""),
-      role,
+      confirmPassword: String(form.get("confirmPassword") || ""),
+      role: accountType === "government" ? officialRole : accountType,
       phone: String(form.get("phone") || "").trim(),
       address: String(form.get("address") || "").trim(),
+      pincode: String(form.get("pincode") || "").trim(),
+      wardNo: String(form.get("wardNo") || "").trim(),
       companyName: String(form.get("companyName") || "").trim(),
       registrationNumber: String(form.get("registrationNumber") || "").trim(),
       gstNumber: String(form.get("gstNumber") || "").trim(),
+      ministryId: String(form.get("ministryId") || "").trim(),
+      departmentId: String(form.get("departmentId") || "").trim(),
+      regionId: String(form.get("regionId") || "").trim(),
     };
+
+    if (payload.password !== payload.confirmPassword) {
+      toast.error("Passwords do not match");
+      setSubmitting(false);
+      return;
+    }
+
+    if (payload.password.length < 8) {
+      toast.error("Password must be at least 8 characters long");
+      setSubmitting(false);
+      return;
+    }
 
     const result = await register(payload);
     setSubmitting(false);
@@ -78,6 +97,20 @@ export function SignUpForm({ className, ...props }) {
         <Field>
           <FieldLabel htmlFor="password">Password</FieldLabel>
           <Input id="password" name="password" type="password" required minLength={8} />
+          <FieldDescription>
+            Use at least 8 characters with uppercase, lowercase, a number, and a symbol.
+          </FieldDescription>
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="confirmPassword">Confirm Password</FieldLabel>
+          <Input
+            id="confirmPassword"
+            name="confirmPassword"
+            type="password"
+            required
+            minLength={8}
+          />
         </Field>
 
         <Field>
@@ -91,20 +124,67 @@ export function SignUpForm({ className, ...props }) {
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="role">Account Type</FieldLabel>
+          <FieldLabel htmlFor="pincode">Pincode</FieldLabel>
+          <Input id="pincode" name="pincode" placeholder="Optional" />
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="wardNo">Ward Number</FieldLabel>
+          <Input id="wardNo" name="wardNo" placeholder="Optional for now" />
+          <FieldDescription>
+            You can add or update this later from your profile.
+          </FieldDescription>
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="accountType">Account Type</FieldLabel>
           <select
-            id="role"
-            name="role"
-            value={role}
-            onChange={(event) => setRole(event.target.value)}
+            id="accountType"
+            name="accountType"
+            value={accountType}
+            onChange={(event) => setAccountType(event.target.value)}
             className="h-10 rounded-md border border-input bg-background px-3 text-sm"
           >
             <option value="citizen">Resident</option>
             <option value="contractor">Contractor</option>
+            <option value="government">Government Official</option>
           </select>
         </Field>
 
-        {role === "contractor" && (
+        {accountType === "government" && (
+          <>
+            <Field>
+              <FieldLabel htmlFor="officialRole">Official Role</FieldLabel>
+              <select
+                id="officialRole"
+                name="officialRole"
+                value={officialRole}
+                onChange={(event) => setOfficialRole(event.target.value)}
+                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="admin">Administrator</option>
+                <option value="ministry_officer">Ministry Officer</option>
+                <option value="department_head">Department Head</option>
+                <option value="senior_official">Senior Official</option>
+                <option value="regional_manager">Regional Manager</option>
+              </select>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="ministryId">Ministry ID</FieldLabel>
+              <Input id="ministryId" name="ministryId" placeholder="Optional for admin" />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="departmentId">Department ID</FieldLabel>
+              <Input id="departmentId" name="departmentId" placeholder="Optional" />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="regionId">Region ID</FieldLabel>
+              <Input id="regionId" name="regionId" placeholder="Required for regional manager" />
+            </Field>
+          </>
+        )}
+
+        {accountType === "contractor" && (
           <>
             <Field>
               <FieldLabel htmlFor="companyName">Company Name</FieldLabel>

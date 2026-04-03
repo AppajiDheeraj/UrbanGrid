@@ -9,5 +9,10 @@ router.patch('/complaints/:id/verify', protect, authorize('admin'), adminControl
 router.patch('/complaints/:id/reject', protect, authorize('admin'), adminController.rejectComplaint);
 router.post('/complaints/:id/route', protect, authorize('admin'), adminController.routeComplaint);
 router.get('/dashboard/stats', protect, authorize('admin'), adminController.getDashboardStats);
+router.post('/reports/generate', protect, authorize('admin'), adminController.generateReport);
+router.get('/reports', protect, authorize('admin'), adminController.getReports);
+router.get('/reports/:id', protect, authorize('admin'), adminController.getReport);
+router.get('/alerts', protect, authorize('admin'), adminController.getAlerts);
+router.patch('/alerts/:id/resolve', protect, authorize('admin'), adminController.resolveAlert);
 
 module.exports = router;

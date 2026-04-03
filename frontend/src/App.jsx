@@ -5,6 +5,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/protected-route";
 import { PublicRoute } from "@/components/public-route";
 import DashboardPage from "@/pages/Dashboard";
+import ComplaintSubmitPage from "@/pages/ComplaintSubmit";
 import HomePage from "@/pages/home";
 import LoginPage from "@/pages/Login";
 import SignUpPage from "@/pages/signup";
@@ -41,6 +42,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <SettingsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/complaints/new"
+              element={
+                <ProtectedRoute>
+                  <ComplaintSubmitPage />
                 </ProtectedRoute>
               }
             />

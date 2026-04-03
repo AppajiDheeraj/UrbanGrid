@@ -60,7 +60,7 @@ export const Sidebar = forwardRef(({ className, ...props }, ref) => {
     <aside
       ref={ref}
       className={cn(
-        "flex flex-col overflow-hidden border-r border-border bg-sidebar text-sidebar-foreground transition-all duration-200",
+        "relative flex flex-col overflow-visible border-r border-border bg-sidebar text-sidebar-foreground transition-all duration-200",
         state === "collapsed" ? "w-20" : "w-72",
         className
       )}
@@ -79,7 +79,7 @@ export function SidebarContent({ className, ...props }) {
 }
 
 export function SidebarFooter({ className, ...props }) {
-  return <div className={cn("px-4 py-4", className)} {...props} />;
+  return <div className={cn("relative overflow-visible px-4 py-4", className)} {...props} />;
 }
 
 export function SidebarGroup({ className, ...props }) {

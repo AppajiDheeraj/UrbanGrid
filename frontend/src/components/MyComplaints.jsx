@@ -96,7 +96,7 @@ const MyComplaints = () => {
           onClick={() => setSelectedComplaint(null)}
           className="mb-4"
         >
-          ← Back to My Complaints
+          Back to My Complaints
         </Button>
         <ComplaintTracker complaintId={selectedComplaint} />
       </div>

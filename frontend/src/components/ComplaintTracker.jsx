@@ -25,6 +25,13 @@ const statusConfig = {
   closed: { color: 'bg-gray-500', icon: CheckCircle, label: 'Closed' },
 };
 
+const stageLabels = [
+  { key: 'submittedAt', label: 'Complaint Received' },
+  { key: 'officialViewedAt', label: 'Viewed by Government Official' },
+  { key: 'contractorNotifiedAt', label: 'Contractor Notified' },
+  { key: 'workCompletedAt', label: 'Work Completed' }
+];
+
 const ComplaintTracker = ({ complaintId }) => {
   const [complaint, setComplaint] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -143,14 +150,14 @@ const ComplaintTracker = ({ complaintId }) => {
                 {new Date(complaint.submittedAt).toLocaleDateString()}
               </p>
             </div>
-            <div>
-              <label className="text-sm font-medium text-gray-500">Location</label>
-              <p className="flex items-center gap-1">
-                <MapPin className="h-4 w-4" />
-                {complaint.pinCode}
-              </p>
-            </div>
+          <div>
+            <label className="text-sm font-medium text-gray-500">Location</label>
+            <p className="flex items-center gap-1">
+              <MapPin className="h-4 w-4" />
+              {complaint.pinCode || complaint.wardNo || 'Ward N/A'}
+            </p>
           </div>
+        </div>
 
           <div>
             <label className="text-sm font-medium text-gray-500">Title</label>
@@ -192,29 +199,36 @@ const ComplaintTracker = ({ complaintId }) => {
               <p className="text-red-700 bg-red-50 p-3 rounded">{complaint.rejectionReason}</p>
             </div>
           )}
+
+          {complaint.voteSummary && (
+            <div>
+              <label className="text-sm font-medium text-gray-500">Ward Vote Summary</label>
+              <p className="text-gray-700 bg-gray-50 p-3 rounded">
+                {complaint.voteSummary.totalVotes || 0} vote(s), priority score {Number(complaint.voteSummary.averageVote || 0).toFixed(1)} / 5
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
       <div className="w-full max-w-2xl mx-auto">
         <h3 className="font-semibold mb-3">Timeline</h3>
         <div className="space-y-2">
-          <div className="flex items-center gap-3 p-3 bg-blue-50 rounded">
-            <CheckCircle className="h-5 w-5 text-blue-600" />
-            <div>
-              <p className="font-medium">Complaint Submitted</p>
-              <p className="text-sm text-gray-600">{new Date(complaint.submittedAt).toLocaleString()}</p>
-            </div>
-          </div>
-          
-          {complaint.reviewedAt && (
-            <div className="flex items-center gap-3 p-3 bg-green-50 rounded">
-              <CheckCircle className="h-5 w-5 text-green-600" />
-              <div>
-                <p className="font-medium">Complaint Reviewed</p>
-                <p className="text-sm text-gray-600">{new Date(complaint.reviewedAt).toLocaleString()}</p>
+          {stageLabels.map((stage) => {
+            const value = complaint.tracking?.[stage.key] || complaint[stage.key];
+            const complete = Boolean(value);
+            const StageIcon = complete ? CheckCircle : AlertCircle;
+
+            return (
+              <div key={stage.key} className={`flex items-center gap-3 p-3 rounded ${complete ? 'bg-green-50' : 'bg-gray-50'}`}>
+                <StageIcon className={`h-5 w-5 ${complete ? 'text-green-600' : 'text-gray-400'}`} />
+                <div>
+                  <p className="font-medium">{stage.label}</p>
+                  <p className="text-sm text-gray-600">{complete ? new Date(value).toLocaleString() : 'Pending'}</p>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })}
         </div>
       </div>
     </div>

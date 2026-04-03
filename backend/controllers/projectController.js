@@ -1,5 +1,6 @@
 const generateId = require('../utils/generateId');
 const { query, queryOne, run, withTransaction } = require('../utils/sql');
+const { createAlert } = require('../utils/alerts');
 const {
   mapProject,
   mapProgress,
@@ -7,6 +8,31 @@ const {
   mapContractor,
   mapSimpleUser
 } = require('../utils/serializers');
+
+const logAlert = async (payload) => {
+  try {
+    await createAlert(payload);
+  } catch (error) {
+    console.error('Failed to create alert:', error.message);
+  }
+};
+
+const normalizeMilestones = (value) => {
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      return [];
+    }
+  }
+
+  return [];
+};
 
 const getRegionalManager = async (regionId) => {
   if (!regionId) {
@@ -154,6 +180,7 @@ const projectController = {
   assignContractor: async (req, res) => {
     try {
       const { tenderId, bidId } = req.params;
+      const { milestones } = req.body;
 
       const tender = await queryOne('SELECT * FROM tenders WHERE id = ? LIMIT 1', [tenderId]);
 
@@ -183,11 +210,12 @@ const projectController = {
               allocated_budget,
               start_date,
               proposed_end_date,
-              assigned_by,
-              assigned_at,
-              regional_manager_id
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)
+            assigned_by,
+            assigned_at,
+            regional_manager_id,
+            milestones
+          )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)
           `,
           [
             generateId('PRJ'),
@@ -200,7 +228,8 @@ const projectController = {
             bid.proposed_start_date || null,
             bid.proposed_end_date || null,
             req.user.id,
-            regionalManager?.id || null
+            regionalManager?.id || null,
+            JSON.stringify(normalizeMilestones(milestones))
           ]
         );
 
@@ -214,8 +243,24 @@ const projectController = {
           'UPDATE complaints SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
           ['in_progress', tender.complaint_id]
         );
+        await tx.run(
+          `
+            UPDATE complaints
+            SET contractor_notified_at = COALESCE(contractor_notified_at, NOW()),
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+          `,
+          [tender.complaint_id]
+        );
 
         return projectResult.insertId;
+      });
+
+      await logAlert({
+        sourceType: 'project',
+        sourceId: projectId,
+        alertLevel: 'warning',
+        message: `Project ${projectId} has been assigned to a contractor.`
       });
 
       const projectRow = await queryOne(`${projectsSelect} WHERE p.id = ? LIMIT 1`, [projectId]);
@@ -327,7 +372,14 @@ const projectController = {
         if (recommendation === 'approve') {
           await tx.run('UPDATE projects SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', ['verified', id]);
           await tx.run(
-            'UPDATE complaints SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            `
+              UPDATE complaints
+              SET
+                status = ?,
+                work_completed_at = COALESCE(work_completed_at, NOW()),
+                updated_at = CURRENT_TIMESTAMP
+              WHERE id = ?
+            `,
             ['closed', project.complaint_id]
           );
         } else if (recommendation === 'needs_rework') {
@@ -339,9 +391,72 @@ const projectController = {
 
       const verification = await queryOne('SELECT * FROM verifications WHERE id = ? LIMIT 1', [verificationId]);
 
+      await logAlert({
+        sourceType: 'project',
+        sourceId: id,
+        alertLevel: recommendation === 'approve' ? 'warning' : 'critical',
+        message: `Project ${id} completion was ${recommendation || 'reviewed'}.`
+      });
+
       res.json({
         message: 'Verification completed',
         verification: mapVerification(verification)
+      });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  },
+
+  getMilestones: async (req, res) => {
+    try {
+      const project = await queryOne('SELECT id, milestones FROM projects WHERE id = ? LIMIT 1', [req.params.id]);
+
+      if (!project) {
+        return res.status(404).json({ message: 'Project not found' });
+      }
+
+      res.json({
+        projectId: project.id,
+        milestones: normalizeMilestones(project.milestones)
+      });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  },
+
+  updateMilestones: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { milestones } = req.body;
+      const normalizedMilestones = normalizeMilestones(milestones);
+
+      if (!Array.isArray(milestones) && !(typeof milestones === 'string' && milestones.trim())) {
+        return res.status(400).json({ message: 'Milestones must be an array' });
+      }
+
+      if (typeof milestones === 'string' && milestones.trim() && normalizedMilestones.length === 0) {
+        return res.status(400).json({ message: 'Milestones must be valid JSON' });
+      }
+
+      const project = await queryOne('SELECT id FROM projects WHERE id = ? LIMIT 1', [id]);
+      if (!project) {
+        return res.status(404).json({ message: 'Project not found' });
+      }
+
+      await run(
+        `
+          UPDATE projects
+          SET milestones = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `,
+        [JSON.stringify(normalizedMilestones), id]
+      );
+
+      const updated = await queryOne('SELECT id, milestones FROM projects WHERE id = ? LIMIT 1', [id]);
+      res.json({
+        message: 'Milestones updated successfully',
+        projectId: updated.id,
+        milestones: normalizeMilestones(updated.milestones)
       });
     } catch (error) {
       res.status(500).json({ message: error.message });

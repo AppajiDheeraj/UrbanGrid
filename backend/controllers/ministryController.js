@@ -1,5 +1,6 @@
 const generateId = require('../utils/generateId');
 const { query, queryOne, run, withTransaction } = require('../utils/sql');
+const { createAlert } = require('../utils/alerts');
 const {
   mapComplaint,
   mapTender,
@@ -9,6 +10,14 @@ const {
   mapMinistry,
   mapSimpleUser
 } = require('../utils/serializers');
+
+const logAlert = async (payload) => {
+  try {
+    await createAlert(payload);
+  } catch (error) {
+    console.error('Failed to create alert:', error.message);
+  }
+};
 
 const mapComplaintLite = (row) => {
   if (!row.complaint_ref_id) {
@@ -187,13 +196,23 @@ const ministryController = {
         await tx.run(
           `
             UPDATE complaints
-            SET status = 'tender_created', updated_at = CURRENT_TIMESTAMP
+            SET
+              status = 'tender_created',
+              contractor_notified_at = COALESCE(contractor_notified_at, NOW()),
+              updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
           `,
           [complaintId]
         );
 
         return tenderResult.insertId;
+      });
+
+      await logAlert({
+        sourceType: 'tender',
+        sourceId: tenderId,
+        alertLevel: 'warning',
+        message: `Tender ${tenderId} was created for complaint ${complaintId}.`
       });
 
       const tenderRow = await queryOne(`${tenderSelect} WHERE t.id = ? LIMIT 1`, [tenderId]);
@@ -322,6 +341,13 @@ const ministryController = {
         [id]
       );
 
+      await logAlert({
+        sourceType: 'tender',
+        sourceId: id,
+        alertLevel: 'warning',
+        message: `Tender ${id} was published for bidding.`
+      });
+
       const updated = await queryOne('SELECT * FROM tenders WHERE id = ? LIMIT 1', [id]);
 
       res.json({
@@ -405,6 +431,13 @@ const ministryController = {
           'UPDATE bids SET status = ? WHERE tender_id = ? AND id <> ?',
           ['rejected', tenderId, bidId]
         );
+      });
+
+      await logAlert({
+        sourceType: 'tender',
+        sourceId: tenderId,
+        alertLevel: 'warning',
+        message: `Winning bid ${bidId} was selected for tender ${tenderId}.`
       });
 
       const updated = await queryOne('SELECT * FROM tenders WHERE id = ? LIMIT 1', [tenderId]);

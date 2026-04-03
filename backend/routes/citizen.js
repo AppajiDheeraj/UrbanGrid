@@ -9,17 +9,35 @@ const citizenController = require('../controllers/citizenController');
 router.post('/complaints', 
   protect, 
   authorize('citizen'), 
+  uploadMultiple('images', 5), 
   validatePinCode,
   validateCoordinates,
   auditMiddleware('COMPLAINT_SUBMIT'),
-  uploadMultiple('images', 5), 
   citizenController.submitComplaint
+);
+router.get('/complaints/ward', 
+  protect, 
+  authorize('citizen'), 
+  auditMiddleware('WARD_COMPLAINTS_VIEW'),
+  citizenController.getWardComplaints
 );
 router.get('/complaints/my', 
   protect, 
   authorize('citizen'), 
   auditMiddleware('COMPLAINTS_VIEW'),
   citizenController.getMyComplaints
+);
+router.post('/complaints/:id/vote', 
+  protect, 
+  authorize('citizen'), 
+  auditMiddleware('COMPLAINT_VOTE'),
+  citizenController.voteComplaint
+);
+router.get('/complaints/ward/:id', 
+  protect, 
+  authorize('citizen'), 
+  auditMiddleware('WARD_COMPLAINT_VIEW'),
+  citizenController.getComplaint
 );
 router.get('/complaints/:id', 
   protect, 
