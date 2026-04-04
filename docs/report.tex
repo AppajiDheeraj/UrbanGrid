@@ -1,0 +1,398 @@
+\documentclass[12pt,a4paper,oneside,openany]{report}
+
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{hyperref}
+\usepackage{ragged2e}
+\usepackage{xcolor}
+\usepackage{caption}
+\usepackage{listings}
+\usepackage{titlesec}
+\usepackage{tikz}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=blue,
+  pdftitle={UrbanGrid Project Report},
+  pdfauthor={UrbanGrid Team}
+}
+
+\definecolor{codebg}{RGB}{248,249,252}
+\definecolor{codeborder}{RGB}{220,225,232}
+\definecolor{accent}{RGB}{46,89,166}
+
+\lstdefinelanguage{SQL}{
+  morekeywords={CREATE,TABLE,PRIMARY,KEY,FOREIGN,REFERENCES,INSERT,INTO,VALUES,SELECT,FROM,WHERE,JOIN,LEFT,RIGHT,INNER,OUTER,ON,AS,AND,OR,NOT,NULL,UNIQUE,INDEX,DEFAULT,ON,DELETE,UPDATE,SET,USE,ORDER,BY,GROUP,HAVING,COUNT,SUM,AVG,MAX,MIN,LIMIT},
+  sensitive=false,
+  morecomment=[l]{--},
+  morestring=[b]'
+}
+
+\lstset{
+  language=SQL,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{blue}\bfseries,
+  commentstyle=\color{gray},
+  stringstyle=\color{teal!60!black},
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{codeborder},
+  breaklines=true,
+  columns=fullflexible,
+  showstringspaces=false,
+  tabsize=2
+}
+
+\renewcommand{\arraystretch}{1.2}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.5em}
+
+\titleformat{\chapter}[display]
+  {\normalfont\bfseries\Huge}
+  {}
+  {0pt}
+  {}
+\titleformat{\section}
+  {\normalfont\bfseries\Large}
+  {}
+  {0pt}
+  {}
+\titleformat{\subsection}
+  {\normalfont\bfseries\large}
+  {}
+  {0pt}
+  {}
+\titlespacing*{\chapter}{0pt}{0pt}{18pt}
+\titlespacing*{\section}{0pt}{10pt}{8pt}
+\titlespacing*{\subsection}{0pt}{8pt}{6pt}
+
+\begin{document}
+\let\cleardoublepage\clearpage
+
+\justifying
+
+\begin{titlepage}
+  \centering
+  \vspace*{1.6cm}
+  {\Large\bfseries Project Report\par}
+  \vspace{0.75cm}
+  {\huge\bfseries UrbanGrid\par}
+  \vspace{0.35cm}
+  {\Large Smart City Infrastructure Management System\par}
+  \vspace{0.8cm}
+
+  \includegraphics[width=0.55\textwidth,height=0.32\textheight,keepaspectratio]{logo/nitklogo.png}
+
+  \vspace{0.5cm}
+
+  \vfill
+
+  {\large\bfseries Submitted by\par}
+  \vspace{0.25cm}
+  \begin{tabular}{@{}l r@{}}
+    Adarsh Malipatil & 241CS102 \\
+    Appaji Nagaraja Dheeraj & 241CS110 \\
+    Aryan Bokolia & 241CS111 \\
+    Rishinandan D R & 241CS145 \\
+  \end{tabular}
+
+  \vfill
+  {\large 4 April 2026\par}
+\end{titlepage}
+
+\tableofcontents
+
+\chapter*{Introduction}
+\phantomsection
+\addcontentsline{toc}{chapter}{Introduction}
+UrbanGrid is a smart city infrastructure management system designed around \textbf{three primary user types}: \textbf{Residents}, \textbf{Government Officials}, and \textbf{Contractors}. The system brings these users into one workflow so that civic issues can be reported, verified, grouped by ward, tendered, executed, monitored, and resolved in a controlled database environment.
+
+The project focuses on complaint registration, complaint verification, ward-wise tender generation, bid submission, project assignment, progress monitoring, contractor warnings, contractor removal when needed, re-tendering, and final verification. It also keeps supporting records such as votes, approvals, alerts, and progress updates so that the full lifecycle of a civic issue can be tracked from start to finish. Instead of storing records in scattered spreadsheets or paper registers, UrbanGrid stores everything in a normalized relational schema with clear accountability for each stage of the process.
+
+UrbanGrid is designed to make civic operations easier to follow from the moment a complaint is filed until the final work is verified and closed. It reduces duplication, creates a shared record for all stakeholders, and supports decision-making with structured data instead of scattered manual notes. The result is a more transparent workflow where residents, officials, and contractors can all interact through a single database-backed system.
+
+\chapter*{Survey of Existing System}
+\phantomsection
+\addcontentsline{toc}{chapter}{Survey of Existing System}
+Before UrbanGrid, civic issue handling is usually done through fragmented methods such as phone calls, paper forms, emails, or separate departmental portals. These approaches work for small-scale reporting, but they become difficult to manage when the number of complaints, approvals, and project records increases.
+
+\section*{Observed Practices}
+\begin{itemize}[leftmargin=*]
+  \item Complaints are often recorded manually or in isolated files.
+  \item Different departments maintain separate records for the same issue.
+  \item Follow-up on work progress depends heavily on phone calls and manual reminders.
+  \item Contractors and approval officers are not linked to a common database.
+  \item Citizens rarely get end-to-end visibility of the resolution process.
+\end{itemize}
+
+\section*{Limitations of the Existing System}
+
+
+\begin{itemize}[leftmargin=*]
+  \item No single source of truth for complaints, projects, and approvals.
+  \item Duplicate entry of the same data across multiple registers.
+  \item Hard to trace ownership of a complaint after escalation.
+  \item Poor visibility into contractor bidding and project progress.
+  \item Limited support for analytics and status-based reports.
+  \item Delayed decision making because approvals are not centralized.
+\end{itemize}
+\addcontentsline{toc}{section}{Limitations of the Existing System}
+
+\chapter*{Project Objectives}
+\phantomsection
+\addcontentsline{toc}{chapter}{Project Objectives}
+\begin{itemize}[leftmargin=*]
+
+  \item Allow residents to raise infrastructure complaints with supporting details.
+  \item Allow contractors to submit bids and execute assigned work.
+  \item Route valid complaints to the correct ministry and department for action.
+  \item Generate ward-wise tenders on a periodic basis and collect contractor bids.
+  \item Track project execution with progress updates, warnings, removals, and verification records.
+  \item Maintain accountability through users, approvals, audit logs, and alerts.
+\end{itemize}
+
+\section*{Features Included}
+
+\addcontentsline{toc}{chapter}{Features Included}
+UrbanGrid includes the following major features:
+\begin{itemize}[leftmargin=*]
+
+  \item Resident complaint reporting with category, address, ward number, images, and live status tracking.
+  \item Government verification workflow for review, routing, approval, and rejection.
+  \item Ward-wise tender generation with approval stages, period-based scheduling, and re-tendering support.
+  \item Contractor registration, bid submission, selection, work execution, warning tracking, and removal handling.
+  \item Project tracking with budget, timelines, milestones, and progress percentage.
+  \item Progress updates, final verification, audit logs, alerts, and reporting.
+  \item Seed data for demo users and sample government entities.
+\end{itemize}
+\addcontentsline{toc}{section}{Features Included}
+
+
+\chapter*{Requirements and Implementation}
+\phantomsection
+\addcontentsline{toc}{chapter}{Requirement Specification and Implementation}
+
+
+\section*{Frontend}
+\begin{itemize}[leftmargin=*]
+  \item Responsive user interface for citizens, officials, and contractors.
+  \item Separate login and dashboard experiences for different roles.
+  \item Forms for complaint submission, bid submission, approvals, and progress updates.
+  \item Status tracking views for complaints, tenders, and projects.
+  \item Basic validation and feedback messages for user actions.
+\end{itemize}
+
+\section*{Backend}
+\begin{itemize}[leftmargin=*]
+  \item REST API for authentication, complaint handling, ward-wise tender management, bids, projects, and reports.
+  \item Role-based access control for resident, government official, contractor, and admin actions.
+  \item MySQL-based persistence with relational integrity through primary and foreign keys.
+  \item Audit logging for important security and workflow events.
+  \item Image upload and file handling for complaint evidence and related records.
+\end{itemize}
+
+
+
+\section*{Tools and Technologies Used}
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Frontend:} React with Vite for the user interface.
+  \item \textbf{Backend:} Node.js with Express for the API layer.
+  \item \textbf{Database:} MySQL 8+ for relational storage.
+  \item \textbf{Design Tools:} MySQL Workbench for the schema design and draw.io tool for ER diagram.
+
+\end{itemize}
+
+\section*{System Design}
+\phantomsection
+\addcontentsline{toc}{section}{System Design}
+
+\section*{ER Diagram}
+\phantomsection
+\addcontentsline{toc}{section}{ER Diagram}
+
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.97\textwidth]{backend/sql/er-diagram.png}
+\caption{UrbanGrid ER diagram}
+\end{figure}
+
+\section*{Schema Diagram}
+\phantomsection
+\addcontentsline{toc}{section}{Schema Diagram}
+The schema diagram below is the MySQL Workbench-style diagram captured from the implemented database structure. It shows the actual tables and relationships used in the project.
+
+\begin{figure}[H]
+  \centering
+\includegraphics[width=0.97\textwidth]{backend/sql/schema.png}
+  \caption{UrbanGrid schema diagram from the MySQL design}
+\end{figure}
+
+
+
+\chapter*{Tables}
+\phantomsection
+\addcontentsline{toc}{chapter}{Tables}
+The following table summary lists the major tables used in UrbanGrid and their purpose.
+
+\begin{longtable}{p{3.0cm} p{4.3cm} p{7.0cm}}
+\toprule
+\textbf{Table} & \textbf{Key Fields} & \textbf{Purpose} \\
+\midrule
+\endhead
+ministries & id, name, code, description & Stores government ministries and acts as the top-level administrative entity. \\
+departments & id, ministry\_id, name, code, responsibilities & Stores departments under a ministry. \\
+users & id, role, ministry\_id, department\_id, region\_id, email & Stores login and profile information for the 3 primary user types and supporting admin roles. \\
+regions & id, name, pin\_codes, manager\_id, department\_id & Stores city or zone-level administrative divisions. \\
+contractors & id, user\_id, company\_name, registration\_number, rating & Stores contractor business details linked to users. \\
+user\_settings & id, user\_id, theme, language, notifications & Stores personal preferences for each user. \\
+user\_login\_attempts & id, user\_id, email, ip\_address, was\_successful & Stores login audit trail and security events. \\
+complaints & id, complaint\_id, citizen\_id, title, category, status, ministry\_id, department\_id & Stores resident complaints and routing details. \\
+complaint\_votes & id, complaint\_id, voter\_user\_id, ward\_no, vote\_value & Stores citizen support/voting on complaints. \\
+tenders & id, tender\_id, complaint\_id, ministry\_id, department\_id, estimated\_budget, status & Stores ward-wise, period-based tender records and their lifecycle. \\
+tender\_approvals & id, tender\_id, level, approver\_id, status, comments & Stores the approval workflow for a tender. \\
+bids & id, tender\_id, contractor\_id, amount, proposed\_start\_date, status & Stores contractor bids submitted for tenders. \\
+projects & id, project\_id, tender\_id, complaint\_id, contractor\_id, progress\_percentage, status & Stores active works assigned to contractors. \\
+progress\_updates & id, project\_id, update\_type, title, percentage\_complete, submitted\_by & Stores project progress history and updates. \\
+verifications & id, project\_id, complaint\_id, verification\_type, verified\_by, rating, recommendation & Stores verification records for complaint/project checks. \\
+city\_reports & id, generated\_by, report\_type, report\_data & Stores generated analytical reports for officials. \\
+alerts & id, source\_type, source\_id, alert\_level, status, resolved\_by & Stores warning and critical alerts raised by the system. \\
+\bottomrule
+\end{longtable}
+
+\chapter*{Sample MySQL Queries}
+\phantomsection
+\addcontentsline{toc}{chapter}{Sample MySQL Queries}
+The following queries can be executed in MySQL during the presentation to demonstrate the tables and relationships.
+
+\section*{1. View all complaints with citizen details}
+\begin{lstlisting}
+SELECT c.id, c.complaint_id, c.title, c.category, c.status,
+       u.name AS citizen_name, u.email, c.submitted_at
+FROM complaints c
+JOIN users u ON u.id = c.citizen_id
+ORDER BY c.submitted_at DESC;
+\end{lstlisting}
+
+\section*{2. Find complaints that are ready for tender creation}
+\begin{lstlisting}
+SELECT id, complaint_id, title, category, status
+FROM complaints
+WHERE status = 'verified'
+ORDER BY reviewed_at DESC;
+\end{lstlisting}
+
+\section*{3. Show tender records with ministry and department names}
+\begin{lstlisting}
+SELECT t.tender_id, t.title, t.status, t.estimated_budget,
+       m.name AS ministry_name,
+       d.name AS department_name
+FROM tenders t
+JOIN ministries m ON m.id = t.ministry_id
+JOIN departments d ON d.id = t.department_id
+ORDER BY t.created_at DESC;
+\end{lstlisting}
+
+\section*{4. Show bids submitted for each tender}
+\begin{lstlisting}
+SELECT b.id, b.tender_id, t.tender_id AS tender_code,
+       c.company_name, b.amount, b.status, b.submitted_at
+FROM bids b
+JOIN tenders t ON t.id = b.tender_id
+JOIN contractors c ON c.id = b.contractor_id
+ORDER BY b.submitted_at DESC;
+\end{lstlisting}
+
+\section*{5. Show active projects with contractor and progress}
+\begin{lstlisting}
+SELECT p.project_id, p.title, p.status, p.progress_percentage,
+       c.company_name, p.start_date, p.proposed_end_date
+FROM projects p
+JOIN contractors c ON c.id = p.contractor_id
+ORDER BY p.progress_percentage DESC;
+\end{lstlisting}
+
+\section*{6. Display progress updates for a specific project}
+\begin{lstlisting}
+SELECT pu.id, pu.title, pu.update_type, pu.percentage_complete,
+       pu.submitted_at, u.name AS submitted_by
+FROM progress_updates pu
+JOIN users u ON u.id = pu.submitted_by
+WHERE pu.project_id = 1
+ORDER BY pu.submitted_at DESC;
+\end{lstlisting}
+
+\section*{7. Show pending tender approvals}
+\begin{lstlisting}
+SELECT ta.id, ta.tender_id, ta.level, ta.status,
+       u.name AS approver_name, ta.comments
+FROM tender_approvals ta
+LEFT JOIN users u ON u.id = ta.approver_id
+WHERE ta.status = 'pending'
+ORDER BY ta.level ASC;
+\end{lstlisting}
+
+\section*{8. Region-wise complaint count}
+\begin{lstlisting}
+SELECT r.name AS region_name, COUNT(c.id) AS complaint_count
+FROM regions r
+LEFT JOIN complaints c ON c.region_id = r.id
+GROUP BY r.id, r.name
+ORDER BY complaint_count DESC;
+\end{lstlisting}
+
+\section*{9. Show unresolved alerts}
+\begin{lstlisting}
+SELECT id, source_type, source_id, alert_level, message, created_at
+FROM alerts
+WHERE status = 'open'
+ORDER BY created_at DESC;
+\end{lstlisting}
+
+
+
+\chapter*{Conclusion}
+\phantomsection
+\addcontentsline{toc}{chapter}{Conclusion}
+UrbanGrid is built around a simple but important idea: civic issues should not disappear into separate files, phone calls, or disconnected follow-ups. The project brings residents, government officials, and contractors into one database-driven workflow so that complaints, ward-wise tenders, bids, project updates, and verification records can all be tracked in a clear and organized way.
+
+The scope of the project goes beyond just storing data. It shows how a smart city management system can be structured so that each stage of the process has ownership, status tracking, and accountability. Features such as complaint registration, tender generation, contractor bidding, work monitoring, warnings, removals, and re-tendering make the system practical and closer to a real civic workflow.
+
+Overall, the project demonstrates how DBMS concepts can be applied to solve a real problem in a meaningful way. It combines normalization, relational mapping, and reporting in a way that supports both administration and transparency. That makes UrbanGrid a useful and realistic solution for managing infrastructure-related civic work through a single integrated platform.
+
+
+
+\phantomsection
+
+\begin{thebibliography}{99}
+\bibitem{cpgrams}
+Government of India, Ministry of Personnel, Public Grievances and Pensions, \textit{CPGRAMS: Centralized Public Grievance Redress and Monitoring System}. Available at:
+\url{https://www.pgportal.gov.in/}
+
+\bibitem{cpgrams_about}
+Department of Administrative Reforms and Public Grievances, Government of India, \textit{About CPGRAMS}. Available at:
+\url{https://pgportal.gov.in/Home/AboutUs}
+
+\bibitem{smartcities}
+Ministry of Housing and Urban Affairs, Government of India, \textit{Smart Cities Mission}. Available at:
+\url{https://smartcities.gov.in/}
+
+\bibitem{gmis}
+Smart Cities Mission, Government of India, \textit{GMIS Mission Dashboard}. Available at:
+\url{https://gmis.smartcities.gov.in/missionDashboard/}
+
+\bibitem{participative}
+Seunghwan Myeong and Syed Asad Abbas Bokhari, \textit{Building Participative E-Governance in Smart Cities: Moderating Role of Institutional and Technological Innovation}, Sustainability, 2023. DOI:
+\url{https://doi.org/10.3390/su152015075}
+
+
+
+\end{thebibliography}
+\addcontentsline{toc}{chapter}{Bibliography}
+\end{document}

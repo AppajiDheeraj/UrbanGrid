@@ -6,391 +6,395 @@
   <title>UrbanGrid — ER Diagram</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'Inter', sans-serif;
-      background: #0f0f1a;
-      color: #e0e0e0;
-      overflow: hidden;
-      height: 100vh;
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #f0f2f5; font-family: 'Inter', sans-serif; }
+    svg { display: block; width: 100vw; height: 100vh; }
+    #downloadBtn {
+      position: fixed; top: 14px; right: 18px; z-index: 100;
+      padding: 8px 18px; border: none; border-radius: 8px;
+      background: linear-gradient(135deg, #4f86f7, #7c5cf5);
+      color: #fff; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;
+      cursor: pointer; box-shadow: 0 2px 8px rgba(79,134,247,0.35);
+      transition: transform 0.15s, box-shadow 0.15s;
     }
-
-    /* Top bar */
-    .topbar {
-      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-      height: 54px;
-      background: rgba(18,18,32,0.92);
-      backdrop-filter: blur(14px);
-      border-bottom: 1px solid rgba(255,255,255,0.06);
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 0 24px;
-    }
-    .topbar h1 {
-      font-size: 16px; font-weight: 700;
-      background: linear-gradient(135deg,#6ee7b7,#3b82f6);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    }
-    .topbar .controls { display: flex; gap: 8px; }
-    .topbar button {
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.1);
-      color: #ccc; border-radius: 8px;
-      padding: 6px 14px; cursor: pointer;
-      font-size: 13px; font-family: inherit;
-      transition: all .2s;
-    }
-    .topbar button:hover { background: rgba(255,255,255,0.12); color: #fff; }
-
-    /* Legend */
-    .legend {
-      position: fixed; bottom: 20px; left: 20px; z-index: 100;
-      background: rgba(18,18,32,0.92);
-      backdrop-filter: blur(14px);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 12px;
-      padding: 16px 20px;
-      font-size: 12px;
-      display: flex; flex-direction: column; gap: 8px;
-    }
-    .legend .title { font-weight: 700; font-size: 13px; margin-bottom: 4px; color: #a5b4fc; }
-    .legend-item { display: flex; align-items: center; gap: 8px; }
-    .legend-item .shape {
-      width: 22px; height: 16px; border-radius: 3px; flex-shrink: 0;
-    }
-    .legend-item .diamond {
-      width: 20px; height: 20px;
-      transform: rotate(45deg);
-      border-radius: 3px; flex-shrink: 0;
-    }
-
-    /* Canvas */
-    #canvas {
-      position: absolute; top: 54px; left: 0; right: 0; bottom: 0;
-      cursor: grab;
-    }
-    #canvas:active { cursor: grabbing; }
-
-    /* SVG styles */
-    .entity-rect {
-      rx: 6; ry: 6;
-      stroke-width: 2;
-    }
-    .entity-label {
-      font-family: 'Inter', sans-serif;
-      font-weight: 700;
-      font-size: 13px;
-      fill: #fff;
-      text-anchor: middle;
-      dominant-baseline: central;
-      pointer-events: none;
-    }
-    .attr-ellipse {
-      stroke-width: 1.5;
-      opacity: 0.85;
-    }
-    .attr-label {
-      font-family: 'Inter', sans-serif;
-      font-size: 9.5px;
-      fill: #d1d5db;
-      text-anchor: middle;
-      dominant-baseline: central;
-      pointer-events: none;
-    }
-    .attr-label.pk {
-      text-decoration: underline;
-      font-weight: 600;
-    }
-    .rel-diamond {
-      stroke-width: 2;
-    }
-    .rel-label {
-      font-family: 'Inter', sans-serif;
-      font-weight: 600;
-      font-size: 10px;
-      fill: #fff;
-      text-anchor: middle;
-      dominant-baseline: central;
-      pointer-events: none;
-    }
-    .card-label {
-      font-family: 'Inter', sans-serif;
-      font-size: 11px;
-      font-weight: 700;
-      fill: #facc15;
-      text-anchor: middle;
-      dominant-baseline: central;
-    }
-    .rel-line {
-      stroke-width: 1.5;
-      stroke: rgba(255,255,255,0.25);
-      fill: none;
-    }
+    #downloadBtn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(79,134,247,0.45); }
+    #downloadBtn:active { transform: translateY(0); }
   </style>
 </head>
 <body>
-
-<div class="topbar">
-  <h1>🌆 UrbanGrid — Entity-Relationship Diagram</h1>
-  <div class="controls">
-    <button onclick="zoomIn()">＋ Zoom In</button>
-    <button onclick="zoomOut()">− Zoom Out</button>
-    <button onclick="resetView()">⟳ Reset</button>
-  </div>
-</div>
-
-<div class="legend">
-  <div class="title">Legend</div>
-  <div class="legend-item"><div class="shape" style="background:#3b82f6;"></div> Entity (Table)</div>
-  <div class="legend-item"><div class="diamond" style="background:#f59e0b;width:14px;height:14px;"></div> Relationship</div>
-  <div class="legend-item"><div class="shape" style="background:rgba(99,102,241,0.35);border:1.5px solid #818cf8;border-radius:50%;width:18px;height:14px;"></div> Attribute</div>
-  <div class="legend-item"><div class="shape" style="background:transparent;border-bottom:2px solid #facc15;border-radius:0;width:18px;height:0;margin-top:7px;"></div> <u>Underline</u> = Primary Key</div>
-  <div class="legend-item"><span style="color:#facc15;font-weight:700;">1</span>&nbsp;/&nbsp;<span style="color:#facc15;font-weight:700;">N</span> Cardinality</div>
-</div>
-
-<svg id="canvas" xmlns="http://www.w3.org/2000/svg">
+<button id="downloadBtn" onclick="downloadPNG()">📷 Download PNG</button>
+<svg id="diagram" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
   <defs>
-    <filter id="glow">
-      <feGaussianBlur stdDeviation="3" result="blur"/>
-      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    <linearGradient id="hdrG" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4f86f7"/>
+      <stop offset="100%" stop-color="#7c5cf5"/>
+    </linearGradient>
+    <linearGradient id="relG" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#e85d04"/>
+    </linearGradient>
+    <filter id="cardShadow">
+      <feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="rgba(0,0,0,0.08)"/>
     </filter>
-    <linearGradient id="entityGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1"/>
-      <stop offset="100%" style="stop-color:#6366f1;stop-opacity:1"/>
-    </linearGradient>
-    <linearGradient id="relGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#f59e0b;stop-opacity:1"/>
-      <stop offset="100%" style="stop-color:#ef4444;stop-opacity:1"/>
-    </linearGradient>
+    <filter id="diamondGlow">
+      <feDropShadow dx="0" dy="0" stdDeviation="2" flood-color="rgba(245,158,11,0.4)"/>
+    </filter>
+    <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="12" cy="12" r="0.6" fill="rgba(0,0,0,0.05)"/>
+    </pattern>
   </defs>
-  <g id="world"></g>
+
+  <!-- Light background -->
+  <rect width="100%" height="100%" fill="#f0f2f5"/>
+  <rect width="100%" height="100%" fill="url(#dots)"/>
+
+  <g id="lines"></g>
+  <g id="diamonds"></g>
+  <g id="cards"></g>
+  <g id="overlay"></g>
 </svg>
 
 <script>
-// ========== DATA DEFINITION ==========
+const CARD_W = 140;
+const HDR_H = 24;
+const ROW_H = 15;
+const PAD_BOTTOM = 6;
+const COL_GAP = 60;
+const ROW_GAP = 80;
+const COL_STEP = CARD_W + COL_GAP;
 
 const entities = [
-  { id: 'ministries',       label: 'MINISTRIES',        x: 250,  y: 120,  w: 140, h: 44, attrs: ['id','name','code','description','is_active'], pk: 'id' },
-  { id: 'departments',      label: 'DEPARTMENTS',       x: 600,  y: 120,  w: 150, h: 44, attrs: ['id','ministry_id','name','code','responsibilities','is_active'], pk: 'id' },
-  { id: 'users',            label: 'USERS',             x: 1000, y: 120,  w: 120, h: 44, attrs: ['id','name','email','password','role','phone','address','pincode','ward_no','is_active'], pk: 'id' },
-  { id: 'regions',          label: 'REGIONS',           x: 600,  y: 380,  w: 130, h: 44, attrs: ['id','name','pin_codes','manager_id','department_id','is_active'], pk: 'id' },
-  { id: 'contractors',      label: 'CONTRACTORS',       x: 1380, y: 120,  w: 150, h: 44, attrs: ['id','user_id','company_name','registration_number','gst_number','specializations','rating','is_verified'], pk: 'id' },
-  { id: 'user_settings',    label: 'USER_SETTINGS',     x: 1000, y: 900,  w: 155, h: 44, attrs: ['id','user_id','theme','language','email_notif','sms_notif','push_notif'], pk: 'id' },
-  { id: 'login_attempts',   label: 'LOGIN_ATTEMPTS',    x: 1300, y: 900,  w: 165, h: 44, attrs: ['id','user_id','email','ip_address','user_agent','was_successful'], pk: 'id' },
-  { id: 'complaints',       label: 'COMPLAINTS',        x: 250,  y: 380,  w: 150, h: 44, attrs: ['id','complaint_id','citizen_id','title','description','category','images','address','pin_code','ward_no','status'], pk: 'id' },
-  { id: 'complaint_votes',  label: 'COMPLAINT_VOTES',   x: 250,  y: 640,  w: 175, h: 44, attrs: ['id','complaint_id','voter_user_id','ward_no','vote_value'], pk: 'id' },
-  { id: 'tenders',          label: 'TENDERS',           x: 250,  y: 900,  w: 130, h: 44, attrs: ['id','tender_id','complaint_id','ministry_id','department_id','title','estimated_budget','status','winning_bid_id','created_by'], pk: 'id' },
-  { id: 'tender_approvals', label: 'TENDER_APPROVALS',  x: 560,  y: 1150, w: 185, h: 44, attrs: ['id','tender_id','level','approver_id','status','comments'], pk: 'id' },
-  { id: 'bids',             label: 'BIDS',              x: 700,  y: 640,  w: 120, h: 44, attrs: ['id','tender_id','contractor_id','amount','proposal','status','reviewed_by'], pk: 'id' },
-  { id: 'projects',         label: 'PROJECTS',          x: 1050, y: 500,  w: 130, h: 44, attrs: ['id','project_id','tender_id','complaint_id','contractor_id','title','status','allocated_budget','progress_percentage'], pk: 'id' },
-  { id: 'progress_updates', label: 'PROGRESS_UPDATES',  x: 1400, y: 500,  w: 180, h: 44, attrs: ['id','project_id','update_type','title','description','percentage_complete','submitted_by'], pk: 'id' },
-  { id: 'verifications',    label: 'VERIFICATIONS',     x: 1050, y: 700,  w: 160, h: 44, attrs: ['id','project_id','complaint_id','verification_type','status','verified_by','rating','recommendation'], pk: 'id' },
-  { id: 'city_reports',     label: 'CITY_REPORTS',      x: 1400, y: 700,  w: 150, h: 44, attrs: ['id','generated_by','report_type','report_data'], pk: 'id' },
-  { id: 'alerts',           label: 'ALERTS',            x: 1400, y: 900,  w: 120, h: 44, attrs: ['id','source_type','source_id','alert_level','message','status','resolved_by'], pk: 'id' },
+  { id:'ministries',      label:'MINISTRIES',       attrs:['id','name','code','description','is_active'], pk:'id' },
+  { id:'departments',     label:'DEPARTMENTS',      attrs:['id','ministry_id','name','code','responsibilities','is_active'], pk:'id' },
+  { id:'regions',         label:'REGIONS',          attrs:['id','name','pin_codes','manager_id','department_id','is_active'], pk:'id' },
+  { id:'locations',       label:'LOCATIONS',        attrs:['id','region_id','ward_no','address','pincode','latitude','longitude'], pk:'id' },
+  { id:'user_settings',   label:'USER_SETTINGS',    attrs:['id','user_id','theme','language','email_notif','sms_notif','push_notif'], pk:'id' },
+  { id:'users',           label:'USERS',            attrs:['id','name','email','password','role','phone','address','pincode','ward_no','is_active'], pk:'id' },
+  { id:'contractors',     label:'CONTRACTORS',      attrs:['id','user_id','company_name','reg_number','gst_number','specializations','rating','is_verified'], pk:'id' },
+  { id:'city_reports',    label:'CITY_REPORTS',     attrs:['id','generated_by','report_type','report_data'], pk:'id' },
+  { id:'login_attempts',  label:'LOGIN_ATTEMPTS',   attrs:['id','user_id','email','ip_address','user_agent','was_successful'], pk:'id' },
+  { id:'complaints',      label:'COMPLAINTS',       attrs:['id','complaint_id','citizen_id','title','description','category','images','address','pin_code','status'], pk:'id' },
+  { id:'complaint_votes', label:'COMPLAINT_VOTES',  attrs:['id','complaint_id','voter_user_id','ward_no','vote_value'], pk:'id' },
+  { id:'alerts',          label:'ALERTS',           attrs:['id','source_type','source_id','alert_level','message','status','resolved_by'], pk:'id' },
+  { id:'audit_logs',      label:'AUDIT_LOGS',       attrs:['id','user_id','entity_type','entity_id','action','changes','ip_address'], pk:'id' },
+  { id:'tenders',         label:'TENDERS',          attrs:['id','tender_id','complaint_id','ministry_id','department_id','title','budget','status','created_by'], pk:'id' },
+  { id:'tender_approvals',label:'TENDER_APPROVALS', attrs:['id','tender_id','level','approver_id','status','comments'], pk:'id' },
+  { id:'bids',            label:'BIDS',             attrs:['id','tender_id','contractor_id','amount','proposal','status','reviewed_by'], pk:'id' },
+  { id:'projects',        label:'PROJECTS',         attrs:['id','project_id','tender_id','complaint_id','contractor_id','title','status','budget','progress_%'], pk:'id' },
+  { id:'progress_updates',label:'PROGRESS_UPDATES', attrs:['id','project_id','update_type','title','description','pct_complete','submitted_by'], pk:'id' },
+  { id:'verifications',   label:'VERIFICATIONS',    attrs:['id','project_id','complaint_id','type','status','verified_by','rating','recommendation'], pk:'id' },
 ];
 
-const relationships = [
-  // ministry - department
-  { id: 'r1', label: 'HAS', from: 'ministries', to: 'departments', cardFrom: '1', cardTo: 'N', x: 425, y: 120 },
-  // department - users
-  { id: 'r2', label: 'EMPLOYS', from: 'departments', to: 'users', cardFrom: '1', cardTo: 'N', x: 800, y: 120 },
-  // ministry - users
-  { id: 'r3', label: 'BELONGS_TO', from: 'users', to: 'ministries', cardFrom: 'N', cardTo: '1', x: 625, y: 30 },
-  // users - contractors
-  { id: 'r4', label: 'ACTS_AS', from: 'users', to: 'contractors', cardFrom: '1', cardTo: '1', x: 1190, y: 120 },
-  // users - user_settings
-  { id: 'r5', label: 'CONFIGURES', from: 'users', to: 'user_settings', cardFrom: '1', cardTo: '1', x: 1000, y: 810 },
-  // users - login_attempts
-  { id: 'r6', label: 'LOGS', from: 'users', to: 'login_attempts', cardFrom: '1', cardTo: 'N', x: 1150, y: 810 },
-  // department - regions
-  { id: 'r7', label: 'MANAGES', from: 'departments', to: 'regions', cardFrom: '1', cardTo: 'N', x: 600, y: 250 },
-  // users - regions (manager)
-  { id: 'r8', label: 'OVERSEES', from: 'users', to: 'regions', cardFrom: '1', cardTo: 'N', x: 830, y: 300 },
-  // users - complaints (citizen submits)
-  { id: 'r9', label: 'SUBMITS', from: 'users', to: 'complaints', cardFrom: '1', cardTo: 'N', x: 620, y: 460 },
-  // complaints - regions
-  { id: 'r10', label: 'LOCATED_IN', from: 'complaints', to: 'regions', cardFrom: 'N', cardTo: '1', x: 425, y: 380 },
-  // complaints - ministries
-  { id: 'r11', label: 'ASSIGNED_TO', from: 'complaints', to: 'ministries', cardFrom: 'N', cardTo: '1', x: 250, y: 250 },
-  // complaints - complaint_votes
-  { id: 'r12', label: 'RECEIVES', from: 'complaints', to: 'complaint_votes', cardFrom: '1', cardTo: 'N', x: 250, y: 510 },
-  // complaints - tenders
-  { id: 'r13', label: 'GENERATES', from: 'complaints', to: 'tenders', cardFrom: '1', cardTo: '1', x: 250, y: 640 },
-  // tenders - ministries
-  { id: 'r14', label: 'ISSUED_BY', from: 'tenders', to: 'ministries', cardFrom: 'N', cardTo: '1', x: 100, y: 510 },
-  // tenders - tender_approvals
-  { id: 'r15', label: 'REQUIRES', from: 'tenders', to: 'tender_approvals', cardFrom: '1', cardTo: 'N', x: 400, y: 1030 },
-  // tenders - bids
-  { id: 'r16', label: 'ATTRACTS', from: 'tenders', to: 'bids', cardFrom: '1', cardTo: 'N', x: 475, y: 770 },
-  // bids - contractors
-  { id: 'r17', label: 'PLACES', from: 'contractors', to: 'bids', cardFrom: '1', cardTo: 'N', x: 1050, y: 380 },
-  // projects - tenders
-  { id: 'r18', label: 'ORIGINATES', from: 'tenders', to: 'projects', cardFrom: '1', cardTo: '1', x: 650, y: 900 },
-  // projects - contractors
-  { id: 'r19', label: 'EXECUTES', from: 'contractors', to: 'projects', cardFrom: '1', cardTo: 'N', x: 1250, y: 310 },
-  // projects - progress_updates
-  { id: 'r20', label: 'TRACKS', from: 'projects', to: 'progress_updates', cardFrom: '1', cardTo: 'N', x: 1225, y: 500 },
-  // projects - verifications
-  { id: 'r21', label: 'VERIFIED_BY', from: 'projects', to: 'verifications', cardFrom: '1', cardTo: 'N', x: 1050, y: 600 },
-  // users - city_reports
-  { id: 'r22', label: 'CREATES', from: 'users', to: 'city_reports', cardFrom: '1', cardTo: 'N', x: 1250, y: 700 },
-  // users - alerts (resolved_by)
-  { id: 'r23', label: 'RESOLVES', from: 'users', to: 'alerts', cardFrom: '1', cardTo: 'N', x: 1300, y: 810 },
+entities.forEach(e => { e.h = HDR_H + e.attrs.length * ROW_H + PAD_BOTTOM; });
+
+const grid = [
+  [0,0,'ministries'], [0,1,'departments'], [0,2,'regions'], [0,3,'locations'],
+  [1,0,'user_settings'], [1,1,'users'], [1,2,'contractors'], [1,3,'city_reports'],
+  [2,0,'login_attempts'], [2,1,'complaints'], [2,2,'complaint_votes'], [2,3,'alerts'], [2,4,'audit_logs'],
+  [3,0,'tender_approvals'], [3,1,'tenders'], [3,2,'bids'],
+  [4,0,'verifications'], [4,1,'projects'], [4,2,'progress_updates'],
 ];
 
-// ========== RENDERING ==========
-const svg = document.getElementById('canvas');
-const world = document.getElementById('world');
-
-let scale = 0.72, panX = 30, panY = 20;
-let isPanning = false, startX, startY;
-
-function updateTransform() {
-  world.setAttribute('transform', `translate(${panX},${panY}) scale(${scale})`);
-}
-updateTransform();
-
-// Pan & zoom
-svg.addEventListener('mousedown', e => { isPanning = true; startX = e.clientX - panX; startY = e.clientY - panY; });
-svg.addEventListener('mousemove', e => { if (!isPanning) return; panX = e.clientX - startX; panY = e.clientY - startY; updateTransform(); });
-svg.addEventListener('mouseup',   () => isPanning = false);
-svg.addEventListener('mouseleave',() => isPanning = false);
-svg.addEventListener('wheel', e => {
-  e.preventDefault();
-  const delta = e.deltaY > 0 ? -0.05 : 0.05;
-  scale = Math.min(3, Math.max(0.15, scale + delta));
-  updateTransform();
-}, { passive: false });
-
-function zoomIn()  { scale = Math.min(3, scale + 0.15); updateTransform(); }
-function zoomOut() { scale = Math.max(0.15, scale - 0.15); updateTransform(); }
-function resetView(){ scale = 0.72; panX = 30; panY = 20; updateTransform(); }
-
-// helpers
-function getEntityCenter(id) {
+const rowMax = {};
+grid.forEach(([r, c, id]) => {
   const e = entities.find(en => en.id === id);
-  return { x: e.x + e.w/2, y: e.y + e.h/2 };
+  rowMax[r] = Math.max(rowMax[r] || 0, e.h);
+});
+
+const rowY = {};
+let cumY = 48;
+for (let r = 0; r <= 4; r++) {
+  rowY[r] = cumY;
+  cumY += rowMax[r] + ROW_GAP;
 }
 
-// draw relationship lines FIRST (behind everything)
-relationships.forEach(r => {
-  const fc = getEntityCenter(r.from);
-  const tc = getEntityCenter(r.to);
-  const rx = r.x, ry = r.y;
-
-  // line from entity-from to diamond
-  const l1 = document.createElementNS('http://www.w3.org/2000/svg','line');
-  l1.setAttribute('x1', fc.x); l1.setAttribute('y1', fc.y);
-  l1.setAttribute('x2', rx);   l1.setAttribute('y2', ry);
-  l1.classList.add('rel-line');
-  world.appendChild(l1);
-
-  // line from diamond to entity-to
-  const l2 = document.createElementNS('http://www.w3.org/2000/svg','line');
-  l2.setAttribute('x1', rx);   l2.setAttribute('y1', ry);
-  l2.setAttribute('x2', tc.x); l2.setAttribute('y2', tc.y);
-  l2.classList.add('rel-line');
-  world.appendChild(l2);
-
-  // cardinality labels — position near the entity end
-  function cardPos(ex, ey, dx, dy) {
-    const frac = 0.18;
-    return { x: ex + (dx - ex) * frac, y: ey + (dy - ey) * frac - 10 };
-  }
-  const cp1 = cardPos(fc.x, fc.y, rx, ry);
-  const cp2 = cardPos(tc.x, tc.y, rx, ry);
-
-  const ct1 = document.createElementNS('http://www.w3.org/2000/svg','text');
-  ct1.setAttribute('x', cp1.x); ct1.setAttribute('y', cp1.y);
-  ct1.classList.add('card-label');
-  ct1.textContent = r.cardFrom;
-  world.appendChild(ct1);
-
-  const ct2 = document.createElementNS('http://www.w3.org/2000/svg','text');
-  ct2.setAttribute('x', cp2.x); ct2.setAttribute('y', cp2.y);
-  ct2.classList.add('card-label');
-  ct2.textContent = r.cardTo;
-  world.appendChild(ct2);
+const LEFT_PAD = 18;
+grid.forEach(([r, c, id]) => {
+  const e = entities.find(en => en.id === id);
+  e.x = LEFT_PAD + c * COL_STEP;
+  e.y = rowY[r];
 });
 
-// draw relationship diamonds
-relationships.forEach(r => {
-  const ds = 26; // half-diagonal
-  const pts = `${r.x},${r.y-ds} ${r.x+ds},${r.y} ${r.x},${r.y+ds} ${r.x-ds},${r.y}`;
-  const poly = document.createElementNS('http://www.w3.org/2000/svg','polygon');
-  poly.setAttribute('points', pts);
-  poly.setAttribute('fill', 'url(#relGrad)');
-  poly.setAttribute('stroke', '#fbbf24');
-  poly.classList.add('rel-diamond');
-  poly.setAttribute('filter', 'url(#glow)');
-  world.appendChild(poly);
-
-  const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
-  txt.setAttribute('x', r.x); txt.setAttribute('y', r.y);
-  txt.classList.add('rel-label');
-  txt.textContent = r.label;
-  world.appendChild(txt);
-});
-
-// draw attributes (ovals) around entities
+let maxX = 0, maxY = 0;
 entities.forEach(e => {
-  const cx = e.x + e.w/2;
-  const cy = e.y + e.h/2;
-  const attrs = e.attrs;
-  const n = attrs.length;
-  const radiusX = e.w * 0.9 + 30;
-  const radiusY = Math.max(e.h * 1.5, 55) + n * 3;
-  const startAngle = -Math.PI / 2;
+  maxX = Math.max(maxX, e.x + CARD_W);
+  maxY = Math.max(maxY, e.y + e.h);
+});
+const VB_W = maxX + 18;
+const VB_H = maxY + 58;
 
-  attrs.forEach((attr, i) => {
-    const angle = startAngle + (2 * Math.PI * i) / n;
-    const ax = cx + radiusX * Math.cos(angle);
-    const ay = cy + radiusY * Math.sin(angle);
+document.getElementById('diagram').setAttribute('viewBox', `0 0 ${VB_W} ${VB_H}`);
 
-    // line from entity to attr
-    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
-    line.setAttribute('x1', cx); line.setAttribute('y1', cy);
-    line.setAttribute('x2', ax); line.setAttribute('y2', ay);
-    line.setAttribute('stroke', 'rgba(129,140,248,0.25)');
-    line.setAttribute('stroke-width', '1');
-    world.appendChild(line);
+/* ===== Relationships ===== */
+/* t = position bias along line (0=from, 1=to). ox/oy = pixel offset for diamond. */
+const rels = [
+  { label:'HAS',        from:'ministries',   to:'departments',     cF:'1',cT:'N' },
+  { label:'CONTAINS',   from:'departments',  to:'regions',         cF:'1',cT:'N' },
+  { label:'HAS_LOCS',   from:'regions',      to:'locations',       cF:'1',cT:'N' },
+  { label:'BELONGS_TO', from:'users',        to:'ministries',      cF:'N',cT:'1', t:0.30 },
+  { label:'WORKS_IN',   from:'users',        to:'departments',     cF:'N',cT:'1', t:0.30 },
+  { label:'OVERSEES',   from:'users',        to:'regions',         cF:'1',cT:'N', t:0.30 },
+  { label:'ACTS_AS',    from:'users',        to:'contractors',     cF:'1',cT:'1' },
+  { label:'HAS',        from:'users',        to:'user_settings',   cF:'1',cT:'1' },
+  { label:'LOGS',       from:'users',        to:'login_attempts',  cF:'1',cT:'N', t:0.40, ox:-15 },
+  { label:'SUBMITS',    from:'users',        to:'complaints',      cF:'1',cT:'N', t:0.45 },
+  { label:'IN_REGION',  from:'complaints',   to:'regions',         cF:'N',cT:'1', ox:40, t:0.55 },
+  { label:'RECEIVES',   from:'complaints',   to:'complaint_votes', cF:'1',cT:'N' },
+  { label:'GENERATES',  from:'complaints',   to:'tenders',         cF:'1',cT:'1' },
+  { label:'ISSUED_BY',  from:'tenders',      to:'ministries',      cF:'N',cT:'1', ox:-65, oy:15 },
+  { label:'NEEDS',      from:'tenders',      to:'tender_approvals',cF:'1',cT:'N' },
+  { label:'ATTRACTS',   from:'tenders',      to:'bids',            cF:'1',cT:'N' },
+  { label:'PLACES',     from:'contractors',   to:'bids',           cF:'1',cT:'N', ox:30 },
+  { label:'CREATES',    from:'tenders',      to:'projects',        cF:'1',cT:'1' },
+  { label:'EXECUTES',   from:'contractors',   to:'projects',       cF:'1',cT:'N', ox:40 },
+  { label:'TRACKS',     from:'projects',     to:'progress_updates',cF:'1',cT:'N' },
+  { label:'VERIFIED',   from:'projects',     to:'verifications',   cF:'1',cT:'N' },
+  { label:'GENERATES',  from:'users',        to:'city_reports',    cF:'1',cT:'N' },
+  { label:'RESOLVES',   from:'users',        to:'alerts',          cF:'1',cT:'N', t:0.62 },
+  { label:'AUDITS',     from:'users',        to:'audit_logs',      cF:'1',cT:'N', t:0.65 },
+];
 
-    // ellipse
-    const ell = document.createElementNS('http://www.w3.org/2000/svg','ellipse');
-    ell.setAttribute('cx', ax); ell.setAttribute('cy', ay);
-    ell.setAttribute('rx', 42); ell.setAttribute('ry', 14);
-    ell.setAttribute('fill', 'rgba(99,102,241,0.15)');
-    ell.setAttribute('stroke', '#818cf8');
-    ell.classList.add('attr-ellipse');
-    world.appendChild(ell);
+/* SVG helpers */
+function mk(tag, attrs, parent) {
+  const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const [k,v] of Object.entries(attrs)) el.setAttribute(k, v);
+  if (parent) parent.appendChild(el);
+  return el;
+}
 
-    // label
-    const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
-    txt.setAttribute('x', ax); txt.setAttribute('y', ay);
-    txt.classList.add('attr-label');
-    if (attr === e.pk) txt.classList.add('pk');
-    txt.textContent = attr;
-    world.appendChild(txt);
+const linesG = document.getElementById('lines');
+const diamondsG = document.getElementById('diamonds');
+const cardsG = document.getElementById('cards');
+const overlayG = document.getElementById('overlay');
+
+function edgePt(e, tx, ty) {
+  const cx = e.x + CARD_W/2, cy = e.y + e.h/2;
+  const dx = tx - cx, dy = ty - cy;
+  if (!dx && !dy) return {x:cx, y:cy};
+  const hw = CARD_W/2, hh = e.h/2;
+  let best = null, bestT = Infinity;
+  if (dy < 0) { const t = -hh/dy; if (Math.abs(dx*t)<=hw && t<bestT) { bestT=t; best={x:cx+dx*t, y:e.y}; } }
+  if (dy > 0) { const t = hh/dy;  if (Math.abs(dx*t)<=hw && t<bestT) { bestT=t; best={x:cx+dx*t, y:e.y+e.h}; } }
+  if (dx < 0) { const t = -hw/dx; if (Math.abs(dy*t)<=hh && t<bestT) { bestT=t; best={x:e.x,     y:cy+dy*t}; } }
+  if (dx > 0) { const t = hw/dx;  if (Math.abs(dy*t)<=hh && t<bestT) { bestT=t; best={x:e.x+CARD_W, y:cy+dy*t}; } }
+  return best || {x:cx, y:cy};
+}
+
+/* ===== 1. Lines & diamonds ===== */
+rels.forEach(r => {
+  const fe = entities.find(e => e.id === r.from);
+  const te = entities.find(e => e.id === r.to);
+  const fcx = fe.x+CARD_W/2, fcy = fe.y+fe.h/2;
+  const tcx = te.x+CARD_W/2, tcy = te.y+te.h/2;
+
+  const t = r.t || 0.5;
+  const mx = fcx + (tcx-fcx)*t + (r.ox || 0);
+  const my = fcy + (tcy-fcy)*t + (r.oy || 0);
+
+  const fp = edgePt(fe, mx, my);
+  const tp = edgePt(te, mx, my);
+
+  const feRow = grid.find(g => g[2]===r.from)?.[0] ?? 0;
+  const teRow = grid.find(g => g[2]===r.to)?.[0] ?? 0;
+  const isLong = Math.abs(feRow - teRow) > 1;
+
+  const lineColor = isLong ? 'rgba(0,0,0,0.08)' : 'rgba(0,0,0,0.13)';
+  const lineW = isLong ? '0.8' : '1';
+  const dash = isLong ? '4,3' : 'none';
+
+  mk('line', {x1:fp.x, y1:fp.y, x2:mx, y2:my, stroke:lineColor, 'stroke-width':lineW, 'stroke-dasharray':dash, fill:'none'}, linesG);
+  mk('line', {x1:mx, y1:my, x2:tp.x, y2:tp.y, stroke:lineColor, 'stroke-width':lineW, 'stroke-dasharray':dash, fill:'none'}, linesG);
+
+  /* Diamond */
+  const d = 13;
+  mk('polygon', {
+    points:`${mx},${my-d} ${mx+d},${my} ${mx},${my+d} ${mx-d},${my}`,
+    fill:'url(#relG)', stroke:'#d97706', 'stroke-width':'1', filter:'url(#diamondGlow)'
+  }, diamondsG);
+  mk('text', {
+    x:mx, y:my, 'font-family':'Inter,sans-serif', 'font-size':'5.2', 'font-weight':'700',
+    fill:'#fff', 'text-anchor':'middle', 'dominant-baseline':'central'
+  }, diamondsG).textContent = r.label;
+
+  /* Cardinality — placed at fixed distance from entity edge with perpendicular offset */
+  function cardPos(edgePt, targetPt) {
+    const dx = targetPt.x - edgePt.x, dy = targetPt.y - edgePt.y;
+    const len = Math.sqrt(dx*dx + dy*dy);
+    if (len < 1) return edgePt;
+    const nx = dx/len, ny = dy/len;
+    /* 20px along line from edge, 9px perpendicular (right side) */
+    return { x: edgePt.x + nx*20 + ny*9, y: edgePt.y + ny*20 - nx*9 };
+  }
+  const cp1 = cardPos(fp, {x:mx,y:my});
+  const cp2 = cardPos(tp, {x:mx,y:my});
+
+  [{p:cp1,c:r.cF},{p:cp2,c:r.cT}].forEach(({p,c}) => {
+    mk('text', {
+      x:p.x, y:p.y, 'font-family':'Inter,sans-serif', 'font-size':'8', 'font-weight':'800',
+      fill:'#b45309', 'text-anchor':'middle', 'dominant-baseline':'central'
+    }, diamondsG).textContent = c;
   });
 });
 
-// draw entity rectangles (on top)
+/* ===== 2. Entity cards ===== */
 entities.forEach(e => {
-  const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
-  rect.setAttribute('x', e.x); rect.setAttribute('y', e.y);
-  rect.setAttribute('width', e.w); rect.setAttribute('height', e.h);
-  rect.setAttribute('fill', 'url(#entityGrad)');
-  rect.setAttribute('stroke', '#60a5fa');
-  rect.setAttribute('filter', 'url(#glow)');
-  rect.classList.add('entity-rect');
-  world.appendChild(rect);
+  const g = mk('g', {}, cardsG);
 
-  const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
-  txt.setAttribute('x', e.x + e.w/2); txt.setAttribute('y', e.y + e.h/2);
-  txt.classList.add('entity-label');
-  txt.textContent = e.label;
-  world.appendChild(txt);
+  /* Card shadow + body */
+  mk('rect', {
+    x:e.x, y:e.y, width:CARD_W, height:e.h,
+    fill:'#ffffff', stroke:'#d0d5dd', 'stroke-width':'1', rx:6, ry:6,
+    filter:'url(#cardShadow)'
+  }, g);
+
+  /* Header */
+  mk('rect', {
+    x:e.x, y:e.y, width:CARD_W, height:HDR_H,
+    fill:'url(#hdrG)', rx:6, ry:6
+  }, g);
+  mk('rect', {
+    x:e.x, y:e.y+HDR_H-6, width:CARD_W, height:6, fill:'url(#hdrG)'
+  }, g);
+  mk('line', {
+    x1:e.x, y1:e.y+HDR_H, x2:e.x+CARD_W, y2:e.y+HDR_H,
+    stroke:'#e0e0e0', 'stroke-width':'0.5'
+  }, g);
+
+  /* Header text */
+  mk('text', {
+    x:e.x+CARD_W/2, y:e.y+HDR_H/2,
+    'font-family':'Inter,sans-serif', 'font-weight':'700', 'font-size':'9',
+    fill:'#fff', 'text-anchor':'middle', 'dominant-baseline':'central',
+    'letter-spacing':'0.4'
+  }, g).textContent = e.label;
+
+  /* Attributes */
+  e.attrs.forEach((a, i) => {
+    const ay = e.y + HDR_H + 4 + i * ROW_H + ROW_H/2;
+    const isPk = (a === e.pk);
+
+    if (i % 2 === 0) {
+      mk('rect', {
+        x:e.x+1, y:e.y+HDR_H+4+i*ROW_H, width:CARD_W-2, height:ROW_H,
+        fill:'rgba(0,0,0,0.02)', rx:1
+      }, g);
+    }
+
+    if (isPk) {
+      mk('text', {
+        x:e.x+9, y:ay, 'font-family':'Inter,sans-serif', 'font-size':'7',
+        fill:'#d97706', 'dominant-baseline':'central'
+      }, g).textContent = '🔑';
+    }
+
+    const t = mk('text', {
+      x: e.x + (isPk ? 22 : 11), y: ay,
+      'font-family':'Inter,sans-serif', 'font-size':'8',
+      fill: isPk ? '#b45309' : '#495057',
+      'font-weight': isPk ? '600' : '400',
+      'dominant-baseline':'central'
+    }, g);
+    if (isPk) t.setAttribute('text-decoration', 'underline');
+    t.textContent = a;
+  });
 });
+
+/* ===== 3. Title ===== */
+mk('text', {
+  x: VB_W/2, y: 24,
+  'font-family':'Inter,sans-serif', 'font-weight':'700', 'font-size':'15',
+  fill:'#1e293b', 'text-anchor':'middle', 'dominant-baseline':'central',
+  'letter-spacing':'0.3'
+}, overlayG).textContent = '🌆  UrbanGrid — Entity-Relationship Diagram';
+
+/* ===== 4. Legend ===== */
+const lgX = VB_W - 210, lgY = VB_H - 44;
+mk('rect', {x:lgX, y:lgY, width:200, height:38, fill:'rgba(255,255,255,0.9)', stroke:'#d0d5dd', 'stroke-width':'0.6', rx:5}, overlayG);
+
+const legendItems = [
+  {x:lgX+10, label:'Entity', type:'rect'},
+  {x:lgX+58, label:'Relationship', type:'diamond'},
+  {x:lgX+132, label:'Primary Key', type:'pk'},
+];
+
+legendItems.forEach(item => {
+  const iy = lgY + 14;
+  if (item.type === 'rect') {
+    mk('rect', {x:item.x, y:iy-4, width:13, height:9, fill:'url(#hdrG)', rx:2}, overlayG);
+  } else if (item.type === 'diamond') {
+    mk('rect', {x:item.x+2, y:iy-4, width:8, height:8, fill:'url(#relG)', transform:`rotate(45 ${item.x+6} ${iy})`}, overlayG);
+  } else if (item.type === 'pk') {
+    mk('text', {x:item.x, y:iy, 'font-family':'Inter', 'font-size':'7', fill:'#d97706', 'font-weight':'700', 'text-decoration':'underline', 'dominant-baseline':'central'}, overlayG).textContent = '🔑 id';
+  }
+  mk('text', {
+    x: item.x + (item.type==='pk'?22:16), y: iy,
+    'font-family':'Inter', 'font-size':'6.5', fill:'#666', 'dominant-baseline':'central'
+  }, overlayG).textContent = item.label;
+});
+
+/* Cardinality in legend */
+mk('text', {x:lgX+170, y:lgY+28, 'font-family':'Inter', 'font-size':'8', fill:'#b45309', 'font-weight':'800', 'dominant-baseline':'central'}, overlayG).textContent = '1 / N';
+mk('text', {x:lgX+152, y:lgY+28, 'font-family':'Inter', 'font-size':'6.5', fill:'#666', 'dominant-baseline':'central', 'text-anchor':'end'}, overlayG).textContent = 'Cardinality';
+/* ===== 5. Download as high-res PNG ===== */
+function downloadPNG() {
+  const btn = document.getElementById('downloadBtn');
+  btn.textContent = '⏳ Generating...';
+  btn.disabled = true;
+
+  const svgEl = document.getElementById('diagram');
+  const vb = svgEl.getAttribute('viewBox').split(' ').map(Number);
+  const svgW = vb[2], svgH = vb[3];
+
+  /* 3x resolution for crisp output */
+  const scale = 3;
+  const canvas = document.createElement('canvas');
+  canvas.width = svgW * scale;
+  canvas.height = svgH * scale;
+  const ctx = canvas.getContext('2d');
+
+  /* Fill background */
+  ctx.fillStyle = '#f0f2f5';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  /* Clone SVG and set explicit dimensions */
+  const clone = svgEl.cloneNode(true);
+  clone.setAttribute('width', svgW);
+  clone.setAttribute('height', svgH);
+  clone.removeAttribute('style');
+
+  /* Inline the font for the exported image */
+  const styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+  styleEl.textContent = `
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    text { font-family: 'Inter', sans-serif; }
+  `;
+  clone.insertBefore(styleEl, clone.firstChild);
+
+  const svgData = new XMLSerializer().serializeToString(clone);
+  const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(svgBlob);
+
+  const img = new Image();
+  img.onload = () => {
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    URL.revokeObjectURL(url);
+
+    canvas.toBlob(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'UrbanGrid_ER_Diagram.png';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      btn.textContent = '✅ Downloaded!';
+      setTimeout(() => { btn.textContent = '📷 Download PNG'; btn.disabled = false; }, 2000);
+    }, 'image/png');
+  };
+  img.onerror = () => {
+    btn.textContent = '❌ Error';
+    setTimeout(() => { btn.textContent = '📷 Download PNG'; btn.disabled = false; }, 2000);
+  };
+  img.src = url;
+}
 </script>
 </body>
 </html>
