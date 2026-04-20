@@ -22,21 +22,28 @@ const approvalController = {
         `
           SELECT id
           FROM users
-          WHERE ministry_id = ? AND role = ? AND is_active = 1
+          WHERE ministry_id = ? AND role = ?
+            AND id <> ?
           ORDER BY id ASC
           LIMIT 1
         `,
-        [tender.ministry_id, approverRole]
+        [tender.ministry_id, approverRole, req.user.id]
       );
 
       await withTransaction(async (tx) => {
         await tx.run('UPDATE tenders SET status = ? WHERE id = ?', ['pending_approval', id]);
         await tx.run(
           `
-            INSERT INTO tender_approvals (tender_id, level, approver_id, status)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO tender_approvals (
+              tender_id,
+              approval_level,
+              approval_role,
+              approver_id,
+              approval_status
+            )
+            VALUES (?, ?, ?, ?, ?)
           `,
-          [id, approvalLevel, approver?.id || null, 'pending']
+          [id, approvalLevel, approverRole, approver?.id || null, 'pending']
         );
       });
 
@@ -58,7 +65,7 @@ const approvalController = {
           SELECT
             t.*,
             c.id AS complaint_ref_id,
-            c.title AS complaint_ref_title,
+            c.issue_title AS complaint_ref_title,
             c.category AS complaint_ref_category,
             m.id AS ministry_ref_id,
             m.name AS ministry_ref_name,
@@ -72,7 +79,7 @@ const approvalController = {
           LEFT JOIN complaints c ON c.id = t.complaint_id
           LEFT JOIN ministries m ON m.id = t.ministry_id
           LEFT JOIN users u ON u.id = t.created_by
-          WHERE ta.status = 'pending' AND ta.approver_id = ?
+          WHERE ta.approval_status = 'pending' AND ta.approver_id = ?
           ORDER BY t.created_at DESC
         `,
         [req.user.id]
@@ -108,7 +115,7 @@ const approvalController = {
         `
           SELECT *
           FROM tender_approvals
-          WHERE tender_id = ? AND approver_id = ? AND status = 'pending'
+          WHERE tender_id = ? AND approver_id = ? AND approval_status = 'pending'
           LIMIT 1
         `,
         [id, req.user.id]
@@ -121,24 +128,27 @@ const approvalController = {
       await withTransaction(async (tx) => {
         await tx.run(
           `
-            UPDATE tender_approvals
-            SET status = 'approved', comments = ?, action_at = NOW()
+              UPDATE tender_approvals
+            SET approval_status = 'approved', remarks = ?, approved_at = NOW()
             WHERE id = ?
           `,
           [comments || null, approvalEntry.id]
         );
 
         const pendingRow = await tx.queryOne(
-          'SELECT COUNT(*) AS total FROM tender_approvals WHERE tender_id = ? AND status = ?',
+          'SELECT COUNT(*) AS total FROM tender_approvals WHERE tender_id = ? AND approval_status = ?',
           [id, 'pending']
         );
         const rejectedRow = await tx.queryOne(
-          'SELECT COUNT(*) AS total FROM tender_approvals WHERE tender_id = ? AND status = ?',
+          'SELECT COUNT(*) AS total FROM tender_approvals WHERE tender_id = ? AND approval_status = ?',
           [id, 'rejected']
         );
 
         if ((pendingRow?.total || 0) === 0 && (rejectedRow?.total || 0) === 0) {
-          await tx.run('UPDATE tenders SET status = ? WHERE id = ?', ['approved', id]);
+          await tx.run(
+            'UPDATE tenders SET status = ?, reviewed_by = ?, reviewed_at = NOW() WHERE id = ?',
+            ['approved', req.user.id, id]
+          );
         }
       });
 
@@ -162,7 +172,7 @@ const approvalController = {
         `
           SELECT *
           FROM tender_approvals
-          WHERE tender_id = ? AND approver_id = ? AND status = 'pending'
+          WHERE tender_id = ? AND approver_id = ? AND approval_status = 'pending'
           LIMIT 1
         `,
         [id, req.user.id]
@@ -175,14 +185,17 @@ const approvalController = {
       await withTransaction(async (tx) => {
         await tx.run(
           `
-            UPDATE tender_approvals
-            SET status = 'rejected', comments = ?, action_at = NOW()
+              UPDATE tender_approvals
+            SET approval_status = 'rejected', remarks = ?, approved_at = NOW()
             WHERE id = ?
           `,
           [comments || null, approvalEntry.id]
         );
 
-        await tx.run('UPDATE tenders SET status = ? WHERE id = ?', ['rejected', id]);
+        await tx.run(
+          'UPDATE tenders SET status = ?, reviewed_by = ?, reviewed_at = NOW() WHERE id = ?',
+          ['cancelled', req.user.id, id]
+        );
       });
 
       const tender = await queryOne('SELECT * FROM tenders WHERE id = ? LIMIT 1', [id]);
@@ -203,13 +216,13 @@ const approvalController = {
           SELECT
             t.*,
             ta.id AS approval_id,
-            ta.level AS approval_level,
-            ta.status AS approval_status,
-            ta.comments AS approval_comments,
-            ta.action_at AS approval_action_at,
+            ta.approval_level,
+            ta.approval_status,
+            ta.remarks AS approval_comments,
+            ta.approved_at AS approval_action_at,
             ta.created_at AS approval_created_at,
             c.id AS complaint_ref_id,
-            c.title AS complaint_ref_title,
+            c.issue_title AS complaint_ref_title,
             m.id AS ministry_ref_id,
             m.name AS ministry_ref_name,
             m.code AS ministry_ref_code

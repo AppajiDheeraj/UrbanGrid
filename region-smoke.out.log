@@ -1,0 +1,11 @@
+
+> backend@1.0.0 start
+> node server.js
+
+[dotenv@17.3.1] injecting env (11) from .env -- tip: ⚙️  override existing env vars with { override: true }
+MySQL Connected: localhost:3306/urbangrid
+Server running on port 5051
+Environment: development
+2026-04-19T13:47:38.458Z - POST /api/auth/login - IP: ::1
+2026-04-19T13:47:38.796Z - GET /api/region/projects - IP: ::1
+2026-04-19T13:47:38.807Z - GET /api/region/complaints - IP: ::1

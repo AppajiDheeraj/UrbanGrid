@@ -1,0 +1,28 @@
+
+> backend@1.0.0 start
+> node server.js
+
+[dotenv@17.3.1] injecting env (11) from .env -- tip: ⚙️  override existing env vars with { override: true }
+MySQL Connected: localhost:3306/urbangrid
+Server running on port 5052
+Environment: development
+2026-04-19T19:44:44.605Z - POST /api/auth/register - IP: ::1
+2026-04-19T19:44:44.960Z - POST /api/auth/register - IP: ::1
+2026-04-19T19:44:45.229Z - POST /api/auth/register - IP: ::1
+2026-04-19T19:44:45.499Z - POST /api/auth/login - IP: ::1
+2026-04-19T19:44:45.826Z - POST /api/auth/login - IP: ::1
+2026-04-19T19:44:46.145Z - POST /api/auth/login - IP: ::1
+2026-04-19T19:44:46.453Z - POST /api/auth/login - IP: ::1
+2026-04-19T19:44:46.721Z - POST /api/auth/login - IP: ::1
+2026-04-19T19:44:47.028Z - POST /api/auth/login - IP: ::1
+2026-04-19T19:44:47.298Z - POST /api/citizen/complaints - IP: ::1
+info: [object Object] {"service":"urbangrid-audit","timestamp":"2026-04-19T19:44:47.310Z"}
+2026-04-19T19:44:47.313Z - POST /api/citizen/complaints/13/vote - IP: ::1
+info: [object Object] {"service":"urbangrid-audit","timestamp":"2026-04-19T19:44:47.322Z"}
+2026-04-19T19:44:47.324Z - PATCH /api/admin/complaints/13/verify - IP: ::1
+2026-04-19T19:44:47.341Z - GET /api/ministry/complaints - IP: ::1
+2026-04-19T19:44:47.347Z - POST /api/ministry/tenders - IP: ::1
+2026-04-19T19:44:47.366Z - PATCH /api/ministry/tenders/4/publish - IP: ::1
+2026-04-19T19:44:47.381Z - POST /api/contractor/tenders/4/bid - IP: ::1
+2026-04-19T19:44:47.392Z - POST /api/ministry/tenders/4/bids/3/select - IP: ::1
+2026-04-19T19:44:47.409Z - GET /api/region/projects - IP: ::1

@@ -1,0 +1,21 @@
+
+> backend@1.0.0 start
+> node server.js
+
+[dotenv@17.3.1] injecting env (11) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+MySQL Connected: localhost:3306/urbangrid
+Server running on port 5054
+Environment: development
+2026-04-19T19:51:20.315Z - POST /api/auth/register - IP: ::1
+2026-04-19T19:51:20.624Z - POST /api/auth/register - IP: ::1
+2026-04-19T19:51:20.907Z - POST /api/auth/login - IP: ::1
+2026-04-19T19:51:21.134Z - POST /api/auth/login - IP: ::1
+2026-04-19T19:51:21.398Z - POST /api/auth/login - IP: ::1
+2026-04-19T19:51:21.686Z - POST /api/auth/login - IP: ::1
+2026-04-19T19:51:21.953Z - POST /api/citizen/complaints - IP: ::1
+info: [object Object] {"service":"urbangrid-audit","timestamp":"2026-04-19T19:51:21.963Z"}
+2026-04-19T19:51:21.966Z - PATCH /api/admin/complaints/15/verify - IP: ::1
+2026-04-19T19:51:21.979Z - POST /api/ministry/tenders - IP: ::1
+2026-04-19T19:51:21.996Z - PATCH /api/ministry/tenders/6/publish - IP: ::1
+2026-04-19T19:51:22.009Z - POST /api/contractor/tenders/6/bid - IP: ::1
+2026-04-19T19:51:22.019Z - POST /api/ministry/tenders/6/bids/5/select - IP: ::1

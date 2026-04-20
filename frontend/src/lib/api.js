@@ -48,6 +48,7 @@ export const ministryAPI = {
   createTender: (data) => api.post('/ministry/tenders', data),
   getTenders: () => api.get('/ministry/tenders'),
   getTender: (id) => api.get(`/ministry/tenders/${id}`),
+  publishTender: (id) => api.patch(`/ministry/tenders/${id}/publish`),
   getBids: (tenderId) => api.get(`/ministry/tenders/${tenderId}/bids`),
   selectBid: (tenderId, bidId) => api.post(`/ministry/tenders/${tenderId}/bids/${bidId}/select`),
 };
@@ -59,7 +60,11 @@ export const contractorAPI = {
   }),
   getMyBids: () => api.get('/contractor/bids'),
   getMyProjects: () => api.get('/contractor/projects'),
+  getAssignedComplaints: () => api.get('/contractor/complaints'),
   updateProgress: (projectId, formData) => api.post(`/contractor/projects/${projectId}/progress`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  markComplete: (projectId, formData) => api.post(`/contractor/projects/${projectId}/complete`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
 };
@@ -70,7 +75,7 @@ export const approvalAPI = {
 };
 
 export const projectAPI = {
-  getProjects: () => api.get('/projects'),
+  getProjects: (params) => api.get('/projects', { params }),
   getProject: (id) => api.get(`/projects/${id}`),
   getProgressHistory: (id) => api.get(`/projects/${id}/progress`),
   getMilestones: (id) => api.get(`/projects/${id}/milestones`),

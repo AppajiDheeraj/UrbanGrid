@@ -1,0 +1,7 @@
+npm error Lifecycle script `dev` failed with error:
+npm error code 4294967295
+npm error path D:\ee\UrbanGrid\frontend
+npm error workspace frontend@0.0.0
+npm error location D:\ee\UrbanGrid\frontend
+npm error command failed
+npm error command C:\windows\system32\cmd.exe /d /s /c vite --port 5175

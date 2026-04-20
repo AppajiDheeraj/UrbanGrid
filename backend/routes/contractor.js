@@ -9,6 +9,7 @@ router.post('/tenders/:tenderId/bid', protect, authorize('contractor'), upload.a
 router.get('/bids', protect, authorize('contractor'), contractorController.getMyBids);
 router.get('/bids/:id', protect, authorize('contractor'), contractorController.getBid);
 router.get('/projects', protect, authorize('contractor'), contractorController.getMyProjects);
+router.get('/complaints', protect, authorize('contractor'), contractorController.getAssignedComplaints);
 router.post('/projects/:projectId/progress', protect, authorize('contractor'), upload.array('images', 5), contractorController.updateProgress);
 router.post('/projects/:projectId/complete', protect, authorize('contractor'), upload.array('images', 5), contractorController.markComplete);
 

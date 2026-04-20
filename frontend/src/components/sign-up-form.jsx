@@ -20,7 +20,6 @@ export function SignUpForm({ className, ...props }) {
   const { register, loading, clearError } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [accountType, setAccountType] = useState("citizen");
-  const [officialRole, setOfficialRole] = useState("ministry_officer");
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -33,7 +32,7 @@ export function SignUpForm({ className, ...props }) {
       email: String(form.get("email") || "").trim(),
       password: String(form.get("password") || ""),
       confirmPassword: String(form.get("confirmPassword") || ""),
-      role: accountType === "government" ? officialRole : accountType,
+      role: accountType,
       phone: String(form.get("phone") || "").trim(),
       address: String(form.get("address") || "").trim(),
       pincode: String(form.get("pincode") || "").trim(),
@@ -147,42 +146,8 @@ export function SignUpForm({ className, ...props }) {
           >
             <option value="citizen">Resident</option>
             <option value="contractor">Contractor</option>
-            <option value="government">Government Official</option>
           </select>
         </Field>
-
-        {accountType === "government" && (
-          <>
-            <Field>
-              <FieldLabel htmlFor="officialRole">Official Role</FieldLabel>
-              <select
-                id="officialRole"
-                name="officialRole"
-                value={officialRole}
-                onChange={(event) => setOfficialRole(event.target.value)}
-                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-              >
-                <option value="admin">Administrator</option>
-                <option value="ministry_officer">Ministry Officer</option>
-                <option value="department_head">Department Head</option>
-                <option value="senior_official">Senior Official</option>
-                <option value="regional_manager">Regional Manager</option>
-              </select>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="ministryId">Ministry ID</FieldLabel>
-              <Input id="ministryId" name="ministryId" placeholder="Optional for admin" />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="departmentId">Department ID</FieldLabel>
-              <Input id="departmentId" name="departmentId" placeholder="Optional" />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="regionId">Region ID</FieldLabel>
-              <Input id="regionId" name="regionId" placeholder="Required for regional manager" />
-            </Field>
-          </>
-        )}
 
         {accountType === "contractor" && (
           <>

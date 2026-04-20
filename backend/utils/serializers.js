@@ -1,4 +1,4 @@
-const { parseJsonArray } = require('./sql');
+const { parseJsonArray, parseJsonObject } = require('./sql');
 
 const withId = (record) => {
   if (!record || record.id == null) {
@@ -136,11 +136,14 @@ const mapComplaint = (row, extra = {}) => {
   status: row.status,
   ministry: extra.ministry ?? row.ministry_id ?? null,
   department: extra.department ?? row.department_id ?? null,
+  project: extra.project ?? row.project_id ?? null,
   submittedAt: row.submitted_at ?? row.created_at ?? null,
   reviewedBy: extra.reviewedBy ?? row.reviewed_by ?? row.verified_by ?? null,
   reviewedAt: row.reviewed_at ?? row.verified_at ?? null,
   reviewNotes: row.review_notes ?? null,
   rejectionReason: row.rejection_reason ?? null,
+  totalVotes: Number(row.vote_count || 0),
+  priorityScore: row.vote_average == null ? 0 : Number(row.vote_average),
   tender: extra.tender ?? null,
   isActive: row.is_active == null ? undefined : Boolean(row.is_active),
   createdAt: row.created_at ?? null,
@@ -150,16 +153,18 @@ const mapComplaint = (row, extra = {}) => {
 
 const mapTender = (row, extra = {}) => withId({
   id: row.id,
-  tenderId: row.tender_id,
+  tenderId: row.tender_id ?? row.id,
   complaint: extra.complaint ?? row.complaint_id,
   ministry: extra.ministry ?? row.ministry_id,
   department: extra.department ?? row.department_id,
-  title: row.title,
+  title: row.title ?? row.name,
   description: row.description,
+  category: row.category ?? null,
   location: {
     address: row.location_address ?? null,
     pinCode: row.location_pin_code ?? null,
-    region: extra.region ?? row.location_region_id ?? null
+    region: extra.region ?? row.location_region_id ?? null,
+    wardNo: row.location_ward_no ?? null
   },
   estimatedBudget: row.estimated_budget == null ? null : Number(row.estimated_budget),
   timeline: {
@@ -173,8 +178,8 @@ const mapTender = (row, extra = {}) => withId({
   project: extra.project ?? null,
   createdBy: extra.createdBy ?? row.created_by,
   createdAt: row.created_at,
-  publishedAt: row.published_at ?? null,
-  biddingDeadline: row.bidding_deadline ?? null
+  publishedAt: row.published_at ?? row.submitted_at ?? null,
+  biddingDeadline: row.bidding_deadline ?? row.tender_end_date ?? null
 });
 
 const mapBid = (row, extra = {}) => withId({
@@ -202,12 +207,12 @@ const mapProject = (row, extra = {}) => withId({
   tender: extra.tender ?? row.tender_id,
   complaint: extra.complaint ?? row.complaint_id,
   contractor: extra.contractor ?? row.contractor_id,
-  title: row.title,
+  title: row.title ?? row.name,
   description: row.description ?? null,
   status: row.status,
   timeline: {
     startDate: row.start_date ?? null,
-    proposedEndDate: row.proposed_end_date ?? null,
+    proposedEndDate: row.proposed_end_date ?? row.expected_end_date ?? null,
     actualEndDate: row.actual_end_date ?? null
   },
   budget: {
@@ -230,8 +235,8 @@ const mapProject = (row, extra = {}) => withId({
 const mapProgress = (row, extra = {}) => withId({
   id: row.id,
   project: extra.project ?? row.project_id,
-  updateType: row.update_type,
-  title: row.title,
+  updateType: row.update_type ?? 'progress',
+  title: row.title ?? 'Progress Update',
   description: row.description,
   percentageComplete: row.percentage_complete ?? null,
   images: parseJsonArray(row.images),
@@ -244,7 +249,7 @@ const mapProgress = (row, extra = {}) => withId({
 
 const mapVerification = (row, extra = {}) => withId({
   id: row.id,
-  project: extra.project ?? row.project_id,
+  project: extra.project ?? row.project_id ?? (row.entity_type === 'project' ? row.entity_id : null),
   complaint: extra.complaint ?? row.complaint_id,
   verificationType: row.verification_type,
   status: row.status,

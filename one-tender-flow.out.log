@@ -1,0 +1,27 @@
+
+> backend@1.0.0 start
+> node server.js
+
+[dotenv@17.3.1] injecting env (11) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+MySQL Connected: localhost:3306/urbangrid
+Server running on port 5055
+Environment: development
+2026-04-19T19:58:47.854Z - POST /api/auth/register - IP: ::1
+2026-04-19T19:58:48.210Z - POST /api/auth/register - IP: ::1
+2026-04-19T19:58:48.443Z - POST /api/auth/register - IP: ::1
+2026-04-19T19:58:48.714Z - POST /api/auth/login - IP: ::1
+2026-04-19T19:58:48.953Z - POST /api/auth/login - IP: ::1
+2026-04-19T19:58:49.175Z - POST /api/auth/login - IP: ::1
+2026-04-19T19:58:49.475Z - POST /api/auth/login - IP: ::1
+2026-04-19T19:58:49.754Z - POST /api/auth/login - IP: ::1
+2026-04-19T19:58:50.028Z - POST /api/citizen/complaints - IP: ::1
+info: [object Object] {"service":"urbangrid-audit","timestamp":"2026-04-19T19:58:50.042Z"}
+2026-04-19T19:58:50.045Z - PATCH /api/admin/complaints/16/verify - IP: ::1
+2026-04-19T19:58:50.062Z - POST /api/ministry/tenders - IP: ::1
+2026-04-19T19:58:50.079Z - POST /api/ministry/tenders - IP: ::1
+2026-04-19T19:58:50.089Z - PATCH /api/ministry/tenders/7/publish - IP: ::1
+2026-04-19T19:58:50.102Z - POST /api/contractor/tenders/7/bid - IP: ::1
+2026-04-19T19:58:50.112Z - POST /api/ministry/tenders/7/bids/6/select - IP: ::1
+2026-04-19T19:58:50.128Z - POST /api/citizen/complaints - IP: ::1
+info: [object Object] {"service":"urbangrid-audit","timestamp":"2026-04-19T19:58:50.134Z"}
+2026-04-19T19:58:50.135Z - GET /api/contractor/complaints - IP: ::1

@@ -18,11 +18,11 @@ const logAlert = async (payload) => {
 };
 
 const categoryToMinistryMap = {
-  road_damage: 'transport',
-  water_leakage: 'water supply',
+  road_damage: 'urban development',
+  water_leakage: 'urban development',
   streetlight_failure: 'urban development',
-  garbage: 'waste management',
-  drainage: 'public works'
+  garbage: 'urban development',
+  drainage: 'urban development'
 };
 
 const complaintSelect = `
@@ -34,8 +34,8 @@ const complaintSelect = `
     citizen.role AS citizen_role,
     citizen.phone AS citizen_phone,
     citizen.address AS citizen_address,
-    citizen.is_active AS citizen_is_active,
-    citizen.is_email_verified AS citizen_is_email_verified,
+    NULL AS citizen_is_active,
+    NULL AS citizen_is_email_verified,
     citizen.created_at AS citizen_created_at,
     citizen.updated_at AS citizen_updated_at,
     m.id AS ministry_ref_id,
@@ -46,13 +46,20 @@ const complaintSelect = `
     d.code AS department_ref_code,
     d.responsibilities AS department_ref_responsibilities,
     d.ministry_id AS department_ref_ministry_id,
-    d.is_active AS department_ref_is_active,
+    NULL AS department_ref_is_active,
     d.created_at AS department_ref_created_at,
-    d.updated_at AS department_ref_updated_at
+    d.updated_at AS department_ref_updated_at,
+    COALESCE(vote_stats.vote_count, 0) AS vote_count,
+    COALESCE(vote_stats.vote_average, 0) AS vote_average
   FROM complaints c
   LEFT JOIN users citizen ON citizen.id = c.citizen_id
-  LEFT JOIN ministries m ON m.id = c.ministry_id
+  LEFT JOIN ministries m ON m.id = COALESCE(c.ministry_id, c.routed_to_ministry_id)
   LEFT JOIN departments d ON d.id = c.department_id
+  LEFT JOIN (
+    SELECT complaint_id, COUNT(*) AS vote_count, AVG(vote_value) AS vote_average
+    FROM complaint_votes
+    GROUP BY complaint_id
+  ) vote_stats ON vote_stats.complaint_id = c.id
 `;
 
 const mapComplaintRow = (row) =>
@@ -66,7 +73,7 @@ const adminController = {
   getPendingComplaints: async (req, res) => {
     try {
       const rows = await query(
-        `${complaintSelect} WHERE c.status = 'submitted' ORDER BY c.submitted_at ASC`
+        `${complaintSelect} WHERE c.status = 'submitted' ORDER BY COALESCE(vote_stats.vote_average, 0) DESC, COALESCE(vote_stats.vote_count, 0) DESC, c.created_at ASC`
       );
 
       res.json({ complaints: rows.map(mapComplaintRow) });
@@ -89,9 +96,11 @@ const adminController = {
       }
 
       const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+      const safeLimit = Number(limit);
+      const safeOffset = Number(offset);
       const rows = await query(
-        `${complaintSelect} ${whereClause} ORDER BY c.created_at DESC LIMIT ? OFFSET ?`,
-        [...params, limit, offset]
+        `${complaintSelect} ${whereClause} ORDER BY COALESCE(vote_stats.vote_average, 0) DESC, COALESCE(vote_stats.vote_count, 0) DESC, c.created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`,
+        params
       );
 
       const countRow = await queryOne(
@@ -131,6 +140,11 @@ const adminController = {
           [`%${ministryName}%`]
         );
         resolvedMinistryId = ministry?.id || null;
+      }
+
+      if (!resolvedMinistryId) {
+        const defaultMinistry = await queryOne('SELECT id FROM ministries ORDER BY id ASC LIMIT 1');
+        resolvedMinistryId = defaultMinistry?.id || null;
       }
 
       await run(
@@ -257,16 +271,16 @@ const adminController = {
           SELECT
             COUNT(*) AS total,
             SUM(CASE WHEN status = 'submitted' THEN 1 ELSE 0 END) AS pending,
-            SUM(CASE WHEN status = 'verified' THEN 1 ELSE 0 END) AS verified,
-            SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) AS inProgress,
-            SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed,
+            SUM(CASE WHEN status IN ('verified', 'tender_created') THEN 1 ELSE 0 END) AS verified,
+            SUM(CASE WHEN status IN ('in_progress', 'pending_admin_verification') THEN 1 ELSE 0 END) AS inProgress,
+            SUM(CASE WHEN status = 'resolved' THEN 1 ELSE 0 END) AS completed,
             SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) AS rejected
           FROM complaints
         `
       );
 
       const recentRows = await query(
-        `${complaintSelect} ORDER BY c.created_at DESC LIMIT 5`
+        `${complaintSelect} ORDER BY COALESCE(vote_stats.vote_average, 0) DESC, COALESCE(vote_stats.vote_count, 0) DESC, c.created_at DESC LIMIT 5`
       );
 
       res.json({
@@ -304,9 +318,10 @@ const adminController = {
             r.id,
             r.name,
             COUNT(c.id) AS complaints,
-            SUM(CASE WHEN c.status IN ('in_progress', 'completed', 'closed') THEN 1 ELSE 0 END) AS active_or_resolved
+            SUM(CASE WHEN c.status IN ('in_progress', 'resolved') THEN 1 ELSE 0 END) AS active_or_resolved
           FROM regions r
-          LEFT JOIN complaints c ON c.region_id = r.id
+          LEFT JOIN locations loc ON loc.region_id = r.id
+          LEFT JOIN complaints c ON c.location_id = loc.id
           GROUP BY r.id, r.name
           ORDER BY r.name ASC
         `
@@ -363,9 +378,11 @@ const adminController = {
       }
 
       const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+      const safeLimit = Number(limit);
+      const safeOffset = Number(offset);
       const rows = await query(
-        `SELECT * FROM city_reports ${whereClause} ORDER BY generated_at DESC LIMIT ? OFFSET ?`,
-        [...params, limit, offset]
+        `SELECT * FROM city_reports ${whereClause} ORDER BY generated_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`,
+        params
       );
       const countRow = await queryOne(
         `SELECT COUNT(*) AS total FROM city_reports ${whereClause}`,

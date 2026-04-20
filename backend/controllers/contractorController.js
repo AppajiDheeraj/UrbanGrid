@@ -1,6 +1,7 @@
 const { query, queryOne, run, withTransaction } = require('../utils/sql');
 const { createAlert } = require('../utils/alerts');
 const {
+  mapComplaint,
   mapTender,
   mapBid,
   mapProject,
@@ -34,19 +35,24 @@ const contractorController = {
             d.code AS department_ref_code,
             d.responsibilities AS department_ref_responsibilities,
             d.ministry_id AS department_ref_ministry_id,
-            d.is_active AS department_ref_is_active,
+            NULL AS department_ref_is_active,
             d.created_at AS department_ref_created_at,
             d.updated_at AS department_ref_updated_at,
             c.id AS complaint_ref_id,
-            c.title AS complaint_ref_title,
-            c.category AS complaint_ref_category
+            c.issue_title AS complaint_ref_title,
+            c.category AS complaint_ref_category,
+            loc.address AS location_address,
+            loc.pincode AS location_pin_code,
+            loc.region_id AS location_region_id,
+            loc.ward_no AS location_ward_no
           FROM tenders t
           LEFT JOIN ministries m ON m.id = t.ministry_id
           LEFT JOIN departments d ON d.id = t.department_id
           LEFT JOIN complaints c ON c.id = t.complaint_id
+          LEFT JOIN locations loc ON loc.id = t.location_id
           WHERE t.status = 'published'
-            AND (t.bidding_deadline IS NULL OR t.bidding_deadline > NOW())
-          ORDER BY t.published_at DESC
+            AND (t.tender_end_date IS NULL OR t.tender_end_date > CURDATE())
+          ORDER BY COALESCE(t.submitted_at, t.created_at) DESC
         `
       );
 
@@ -82,12 +88,31 @@ const contractorController = {
         return res.status(404).json({ message: 'Tender not available for bidding' });
       }
 
-      if (tender.bidding_deadline && new Date() > new Date(tender.bidding_deadline)) {
+      const biddingDeadline = tender.bidding_deadline || tender.tender_end_date;
+
+      if (biddingDeadline && new Date() > new Date(biddingDeadline)) {
         return res.status(400).json({ message: 'Bidding deadline has passed' });
       }
 
       if (!req.user.contractorProfile) {
         return res.status(403).json({ message: 'Only contractors can submit bids' });
+      }
+
+      const normalizedAmount = Number(amount);
+      const normalizedDuration = durationDays == null || durationDays === ''
+        ? null
+        : Number.parseInt(durationDays, 10);
+
+      if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+        return res.status(400).json({ message: 'Bid amount must be a positive number' });
+      }
+
+      if (normalizedDuration != null && (!Number.isInteger(normalizedDuration) || normalizedDuration <= 0)) {
+        return res.status(400).json({ message: 'Timeline days must be a positive whole number' });
+      }
+
+      if (proposedStartDate && proposedEndDate && new Date(proposedStartDate) > new Date(proposedEndDate)) {
+        return res.status(400).json({ message: 'Proposed start date must be before the end date' });
       }
 
       const existingBid = await queryOne(
@@ -121,10 +146,10 @@ const contractorController = {
         [
           tenderId,
           req.user.contractorProfile,
-          amount,
+          normalizedAmount,
           proposedStartDate || null,
           proposedEndDate || null,
-          durationDays || null,
+          normalizedDuration,
           proposal || null,
           JSON.stringify(req.files ? req.files.map(file => ({ name: file.originalname, url: `/uploads/${file.filename}` })) : [])
         ]
@@ -148,13 +173,13 @@ const contractorController = {
           SELECT
             b.*,
             t.id AS tender_ref_id,
-            t.tender_id AS tender_ref_tender_id,
-            t.title AS tender_ref_title,
+            t.id AS tender_ref_tender_id,
+            t.name AS tender_ref_title,
             m.id AS tender_ministry_id,
             m.name AS tender_ministry_name,
             m.code AS tender_ministry_code,
             c.id AS complaint_ref_id,
-            c.title AS complaint_ref_title,
+            c.issue_title AS complaint_ref_title,
             c.category AS complaint_ref_category
           FROM bids b
           LEFT JOIN tenders t ON t.id = b.tender_id
@@ -208,8 +233,8 @@ const contractorController = {
           SELECT
             b.*,
             t.id AS tender_ref_id,
-            t.tender_id AS tender_ref_tender_id,
-            t.title AS tender_ref_title
+            t.id AS tender_ref_tender_id,
+            t.name AS tender_ref_title
           FROM bids b
           LEFT JOIN tenders t ON t.id = b.tender_id
           WHERE b.id = ? AND b.contractor_id = ?
@@ -246,25 +271,25 @@ const contractorController = {
           SELECT
             p.*,
             t.id AS tender_ref_id,
-            t.tender_id AS tender_ref_tender_id,
-            t.title AS tender_ref_title,
+            t.id AS tender_ref_tender_id,
+            t.name AS tender_ref_title,
             c.id AS complaint_ref_id,
-            c.title AS complaint_ref_title,
-            c.address AS complaint_ref_address,
-            rm.id AS regional_manager_user_id,
-            rm.name AS regional_manager_user_name,
-            rm.email AS regional_manager_user_email,
-            rm.role AS regional_manager_user_role,
-            rm.phone AS regional_manager_user_phone,
-            rm.address AS regional_manager_user_address,
-            rm.is_active AS regional_manager_user_is_active,
-            rm.is_email_verified AS regional_manager_user_is_email_verified,
-            rm.created_at AS regional_manager_user_created_at,
-            rm.updated_at AS regional_manager_user_updated_at
+            c.issue_title AS complaint_ref_title,
+            loc.address AS complaint_ref_address,
+            NULL AS regional_manager_user_id,
+            NULL AS regional_manager_user_name,
+            NULL AS regional_manager_user_email,
+            NULL AS regional_manager_user_role,
+            NULL AS regional_manager_user_phone,
+            NULL AS regional_manager_user_address,
+            NULL AS regional_manager_user_is_active,
+            NULL AS regional_manager_user_is_email_verified,
+            NULL AS regional_manager_user_created_at,
+            NULL AS regional_manager_user_updated_at
           FROM projects p
           LEFT JOIN tenders t ON t.id = p.tender_id
           LEFT JOIN complaints c ON c.id = p.complaint_id
-          LEFT JOIN users rm ON rm.id = p.regional_manager_id
+          LEFT JOIN locations loc ON loc.id = c.location_id
           WHERE p.contractor_id = ?
           ORDER BY p.created_at DESC
         `,
@@ -299,6 +324,61 @@ const contractorController = {
     }
   },
 
+  getAssignedComplaints: async (req, res) => {
+    try {
+      const rows = await query(
+        `
+          SELECT
+            c.id AS complaint_id,
+            c.citizen_id,
+            c.location_id,
+            c.ministry_id,
+            c.department_id,
+            c.project_id,
+            c.issue_title,
+            c.issue_description,
+            c.category,
+            c.images,
+            c.status,
+            c.official_viewed_at,
+            c.contractor_notified_at,
+            c.work_completed_at,
+            c.created_at,
+            c.updated_at,
+            loc.address,
+            loc.pincode AS pin_code,
+            loc.ward_no,
+            p.id AS project_ref_id,
+            p.name AS project_ref_name,
+            p.status AS project_ref_status
+          FROM complaints c
+          INNER JOIN projects p ON p.id = c.project_id
+          LEFT JOIN locations loc ON loc.id = c.location_id
+          WHERE p.contractor_id = ?
+          ORDER BY c.created_at DESC
+        `,
+        [req.user.contractorProfile]
+      );
+
+      res.json({
+        complaints: rows.map((row) =>
+          mapComplaint(row, {
+            project: row.project_ref_id
+              ? {
+                  _id: row.project_ref_id,
+                  id: row.project_ref_id,
+                  title: row.project_ref_name,
+                  status: row.project_ref_status
+                }
+              : null
+          })
+        )
+      });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  },
+
   updateProgress: async (req, res) => {
     try {
       const { projectId } = req.params;
@@ -313,26 +393,31 @@ const contractorController = {
         return res.status(404).json({ message: 'Project not found' });
       }
 
+      if (['pending_admin_verification', 'completed'].includes(String(project.status || '').toLowerCase())) {
+        return res.status(400).json({ message: 'This project is waiting for admin action and cannot receive more progress updates right now' });
+      }
+
+      const parsedPercentage = Number(percentageComplete ?? 0);
+      const safePercentage = Number.isFinite(parsedPercentage)
+        ? Math.max(0, Math.min(parsedPercentage, 99))
+        : 0;
+
       const progressId = await withTransaction(async (tx) => {
         const progressResult = await tx.run(
           `
             INSERT INTO progress_updates (
               project_id,
-              update_type,
-              title,
-              description,
               percentage_complete,
+              description,
               images,
               submitted_by
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?)
           `,
           [
             projectId,
-            updateType || 'weekly',
-            title,
-            description,
             percentageComplete || null,
+            [title || updateType || 'Progress Update', description].filter(Boolean).join(': '),
             JSON.stringify(req.files ? req.files.map(file => ({ url: `/uploads/${file.filename}` })) : []),
             req.user.id
           ]
@@ -345,24 +430,38 @@ const contractorController = {
               progress_percentage = ?,
               progress_last_updated = NOW(),
               progress_last_updated_by = ?,
-              status = CASE WHEN status = 'not_started' THEN 'in_progress' ELSE status END,
-              start_date = CASE WHEN status = 'not_started' AND start_date IS NULL THEN CURDATE() ELSE start_date END,
+              status = CASE
+                WHEN status = 'assigned' THEN 'in_progress'
+                ELSE status
+              END,
+              start_date = CASE WHEN status = 'assigned' AND start_date IS NULL THEN CURDATE() ELSE start_date END,
               updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
           `,
-          [percentageComplete || 0, req.user.id, projectId]
+          [safePercentage, req.user.id, projectId]
         );
 
         return progressResult.insertId;
       });
 
-      const progress = await queryOne('SELECT * FROM progress_updates WHERE id = ? LIMIT 1', [progressId]);
+      const progress = await queryOne(
+        `
+          SELECT
+            pu.*,
+            ? AS title,
+            ? AS update_type
+          FROM progress_updates pu
+          WHERE pu.id = ?
+          LIMIT 1
+        `,
+        [title || 'Progress Update', updateType || 'progress', progressId]
+      );
 
       await logAlert({
         sourceType: 'progress',
         sourceId: progressId,
         alertLevel: 'warning',
-        message: `Project ${projectId} progress was updated to ${percentageComplete || 0}%.`
+        message: `Project ${projectId} progress was updated to ${safePercentage}%.`
       });
 
       res.status(201).json({
@@ -388,13 +487,20 @@ const contractorController = {
         return res.status(404).json({ message: 'Project not found' });
       }
 
+      if (String(project.status || '').toLowerCase() === 'pending_admin_verification') {
+        return res.status(400).json({ message: 'Completion has already been submitted for admin verification' });
+      }
+
+      if (String(project.status || '').toLowerCase() === 'completed') {
+        return res.status(400).json({ message: 'Project is already completed' });
+      }
+
       await withTransaction(async (tx) => {
         await tx.run(
           `
             UPDATE projects
             SET
-              status = 'completed',
-              actual_end_date = CURDATE(),
+              status = 'pending_admin_verification',
               progress_percentage = 100,
               progress_last_updated = NOW(),
               progress_last_updated_by = ?,
@@ -408,21 +514,17 @@ const contractorController = {
           `
             INSERT INTO progress_updates (
               project_id,
-              update_type,
-              title,
-              description,
               percentage_complete,
+              description,
               images,
               submitted_by
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?)
           `,
           [
             projectId,
-            'completion',
-            'Project Completed',
-            completionNotes || 'Project has been completed',
             100,
+            `Project Completed: ${completionNotes || 'Project has been completed'}`,
             JSON.stringify(req.files ? req.files.map(file => ({ url: `/uploads/${file.filename}` })) : []),
             req.user.id
           ]
@@ -432,8 +534,7 @@ const contractorController = {
           `
             UPDATE complaints
             SET
-              status = 'completed',
-              work_completed_at = COALESCE(work_completed_at, NOW()),
+              status = 'pending_admin_verification',
               updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
           `,
@@ -445,13 +546,13 @@ const contractorController = {
         sourceType: 'project',
         sourceId: projectId,
         alertLevel: 'warning',
-        message: `Project ${projectId} was marked as completed by the contractor.`
+        message: `Project ${projectId} completion was submitted by the contractor and is waiting for admin verification.`
       });
 
       const updatedProject = await queryOne('SELECT * FROM projects WHERE id = ? LIMIT 1', [projectId]);
 
       res.json({
-        message: 'Project marked as completed',
+        message: 'Completion submitted for admin verification',
         project: mapProject(updatedProject)
       });
     } catch (error) {

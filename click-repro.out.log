@@ -1,0 +1,11 @@
+
+> backend@1.0.0 start
+> node server.js
+
+[dotenv@17.3.1] injecting env (11) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+MySQL Connected: localhost:3306/urbangrid
+Server running on port 5057
+Environment: development
+2026-04-19T20:08:38.086Z - POST /api/auth/login - IP: ::1
+2026-04-19T20:08:38.437Z - GET /api/admin/dashboard/stats - IP: ::1
+2026-04-19T20:08:38.456Z - GET /api/admin/reports - IP: ::1

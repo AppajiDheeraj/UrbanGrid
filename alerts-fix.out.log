@@ -1,0 +1,10 @@
+
+> backend@1.0.0 start
+> node server.js
+
+[dotenv@17.3.1] injecting env (11) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+MySQL Connected: localhost:3306/urbangrid
+Server running on port 5060
+Environment: development
+2026-04-19T20:11:55.656Z - POST /api/auth/login - IP: ::1
+2026-04-19T20:11:55.929Z - GET /api/admin/alerts - IP: ::1

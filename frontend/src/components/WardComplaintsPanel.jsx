@@ -17,6 +17,8 @@ const formatDate = (value) => {
 
 const getStatusLabel = (status) => {
   const value = String(status || "").toLowerCase();
+  if (value === "resolved") return "Resolved";
+  if (value === "pending_admin_verification") return "Pending Admin Verification";
   if (value === "closed") return "Resolved";
   if (value === "completed") return "Completed";
   if (value === "in_progress") return "In Progress";

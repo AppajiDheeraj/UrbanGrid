@@ -1,0 +1,27 @@
+
+> backend@1.0.0 start
+> node server.js
+
+[dotenv@17.3.1] injecting env (11) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+MySQL Connected: localhost:3306/urbangrid
+Server running on port 5052
+Environment: development
+2026-04-19T19:41:07.404Z - POST /api/auth/register - IP: ::ffff:127.0.0.1
+2026-04-19T19:41:07.714Z - POST /api/auth/register - IP: ::ffff:127.0.0.1
+2026-04-19T19:41:07.977Z - POST /api/auth/register - IP: ::ffff:127.0.0.1
+2026-04-19T19:41:08.246Z - POST /api/auth/login - IP: ::ffff:127.0.0.1
+2026-04-19T19:41:08.528Z - POST /api/auth/login - IP: ::ffff:127.0.0.1
+2026-04-19T19:41:08.776Z - POST /api/auth/login - IP: ::ffff:127.0.0.1
+2026-04-19T19:41:09.049Z - POST /api/auth/login - IP: ::ffff:127.0.0.1
+2026-04-19T19:41:09.322Z - POST /api/auth/login - IP: ::ffff:127.0.0.1
+2026-04-19T19:41:09.658Z - POST /api/auth/login - IP: ::ffff:127.0.0.1
+2026-04-19T19:41:09.932Z - POST /api/citizen/complaints - IP: ::ffff:127.0.0.1
+info: [object Object] {"service":"urbangrid-audit","timestamp":"2026-04-19T19:41:09.944Z"}
+2026-04-19T19:41:09.948Z - POST /api/citizen/complaints/11/vote - IP: ::ffff:127.0.0.1
+info: [object Object] {"service":"urbangrid-audit","timestamp":"2026-04-19T19:41:09.959Z"}
+2026-04-19T19:41:09.960Z - GET /api/citizen/complaints/ward - IP: ::ffff:127.0.0.1
+info: [object Object] {"service":"urbangrid-audit","timestamp":"2026-04-19T19:41:09.966Z"}
+2026-04-19T19:41:09.969Z - GET /api/admin/complaints/pending - IP: ::ffff:127.0.0.1
+2026-04-19T19:41:09.976Z - PATCH /api/admin/complaints/11/verify - IP: ::ffff:127.0.0.1
+2026-04-19T19:41:09.992Z - GET /api/ministry/complaints - IP: ::ffff:127.0.0.1
+2026-04-19T19:41:09.997Z - POST /api/ministry/tenders - IP: ::ffff:127.0.0.1

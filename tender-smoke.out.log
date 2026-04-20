@@ -1,0 +1,20 @@
+
+> backend@1.0.0 start
+> node server.js
+
+[dotenv@17.3.1] injecting env (11) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+MySQL Connected: localhost:3306/urbangrid
+Server running on port 5050
+Environment: development
+2026-04-19T13:31:47.505Z - POST /api/auth/register - IP: ::1
+2026-04-19T13:31:47.850Z - POST /api/citizen/complaints - IP: ::1
+info: [object Object] {"service":"urbangrid-audit","timestamp":"2026-04-19T13:31:47.866Z"}
+2026-04-19T13:31:47.868Z - POST /api/auth/login - IP: ::1
+2026-04-19T13:31:48.188Z - PATCH /api/admin/complaints/10/verify - IP: ::1
+2026-04-19T13:31:48.217Z - POST /api/auth/login - IP: ::1
+2026-04-19T13:31:48.543Z - POST /api/ministry/tenders - IP: ::1
+2026-04-19T13:31:48.564Z - PATCH /api/ministry/tenders/2/publish - IP: ::1
+2026-04-19T13:31:48.577Z - POST /api/auth/register - IP: ::1
+2026-04-19T13:31:48.854Z - POST /api/contractor/tenders/2/bid - IP: ::1
+2026-04-19T13:31:48.866Z - GET /api/ministry/tenders/2/bids - IP: ::1
+2026-04-19T13:31:48.872Z - POST /api/ministry/tenders/2/bids/1/select - IP: ::1

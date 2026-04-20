@@ -1,4 +1,3 @@
-const generateId = require('../utils/generateId');
 const { query, queryOne, run, withTransaction } = require('../utils/sql');
 const { createAlert } = require('../utils/alerts');
 const {
@@ -34,46 +33,29 @@ const normalizeMilestones = (value) => {
   return [];
 };
 
-const getRegionalManager = async (regionId) => {
-  if (!regionId) {
-    return null;
-  }
-
-  return queryOne(
-    `
-      SELECT id
-      FROM users
-      WHERE region_id = ? AND role = 'regional_manager'
-      ORDER BY id ASC
-      LIMIT 1
-    `,
-    [regionId]
-  );
-};
-
 const projectsSelect = `
   SELECT
     p.*,
     t.id AS tender_ref_id,
-    t.tender_id AS tender_ref_tender_id,
-    t.title AS tender_ref_title,
+    t.id AS tender_ref_tender_id,
+    t.name AS tender_ref_title,
     c.id AS complaint_ref_id,
-    c.title AS complaint_ref_title,
+    c.issue_title AS complaint_ref_title,
     c.category AS complaint_ref_category,
-    c.address AS complaint_ref_address,
+    loc.address AS complaint_ref_address,
     contractor.id AS contractor_ref_id,
-    contractor.user_id AS contractor_ref_user_id,
+    contractor.id AS contractor_ref_user_id,
     contractor.company_name AS contractor_ref_company_name,
     contractor.registration_number AS contractor_ref_registration_number,
-    contractor.gst_number AS contractor_ref_gst_number,
+    NULL AS contractor_ref_gst_number,
     contractor.address AS contractor_ref_address,
     contractor.phone AS contractor_ref_phone,
-    contractor.specializations AS contractor_ref_specializations,
-    contractor.past_projects AS contractor_ref_past_projects,
-    contractor.rating AS contractor_ref_rating,
-    contractor.documents AS contractor_ref_documents,
-    contractor.is_verified AS contractor_ref_is_verified,
-    contractor.is_active AS contractor_ref_is_active,
+    NULL AS contractor_ref_specializations,
+    contractor.total_projects AS contractor_ref_past_projects,
+    contractor.contractor_rating AS contractor_ref_rating,
+    NULL AS contractor_ref_documents,
+    NULL AS contractor_ref_is_verified,
+    NULL AS contractor_ref_is_active,
     contractor.created_at AS contractor_ref_created_at,
     contractor.updated_at AS contractor_ref_updated_at,
     rm.id AS regional_manager_user_id,
@@ -82,8 +64,8 @@ const projectsSelect = `
     rm.role AS regional_manager_user_role,
     rm.phone AS regional_manager_user_phone,
     rm.address AS regional_manager_user_address,
-    rm.is_active AS regional_manager_user_is_active,
-    rm.is_email_verified AS regional_manager_user_is_email_verified,
+    NULL AS regional_manager_user_is_active,
+    NULL AS regional_manager_user_is_email_verified,
     rm.created_at AS regional_manager_user_created_at,
     rm.updated_at AS regional_manager_user_updated_at,
     au.id AS assigned_by_user_id,
@@ -92,16 +74,17 @@ const projectsSelect = `
     au.role AS assigned_by_user_role,
     au.phone AS assigned_by_user_phone,
     au.address AS assigned_by_user_address,
-    au.is_active AS assigned_by_user_is_active,
-    au.is_email_verified AS assigned_by_user_is_email_verified,
+    NULL AS assigned_by_user_is_active,
+    NULL AS assigned_by_user_is_email_verified,
     au.created_at AS assigned_by_user_created_at,
     au.updated_at AS assigned_by_user_updated_at
   FROM projects p
   LEFT JOIN tenders t ON t.id = p.tender_id
   LEFT JOIN complaints c ON c.id = p.complaint_id
-  LEFT JOIN contractors contractor ON contractor.id = p.contractor_id
-  LEFT JOIN users rm ON rm.id = p.regional_manager_id
-  LEFT JOIN users au ON au.id = p.assigned_by
+  LEFT JOIN locations loc ON loc.id = c.location_id
+  LEFT JOIN users contractor ON contractor.id = p.contractor_id
+  LEFT JOIN users rm ON rm.region_id = p.region_id AND rm.role = 'regional_manager'
+  LEFT JOIN users au ON au.id = p.created_by
 `;
 
 const mapProjectRow = (row) =>
@@ -143,9 +126,11 @@ const projectController = {
       }
 
       const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+      const safeLimit = Number(limit);
+      const safeOffset = Number(offset);
       const rows = await query(
-        `${projectsSelect} ${whereClause} ORDER BY p.created_at DESC LIMIT ? OFFSET ?`,
-        [...params, limit, offset]
+        `${projectsSelect} ${whereClause} ORDER BY p.created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`,
+        params
       );
       const countRow = await queryOne(
         `SELECT COUNT(*) AS total FROM projects p ${whereClause}`,
@@ -194,51 +179,83 @@ const projectController = {
         return res.status(404).json({ message: 'Bid not found' });
       }
 
-      const complaint = await queryOne('SELECT * FROM complaints WHERE id = ? LIMIT 1', [tender.complaint_id]);
-      const regionalManager = await getRegionalManager(complaint?.region_id);
+      const complaint = tender.complaint_id
+        ? await queryOne(
+            `
+              SELECT c.*, loc.region_id
+              FROM complaints c
+              LEFT JOIN locations loc ON loc.id = c.location_id
+              WHERE c.id = ?
+              LIMIT 1
+            `,
+            [tender.complaint_id]
+          )
+        : null;
 
       const projectId = await withTransaction(async (tx) => {
+        const existingProject = await tx.queryOne(
+          'SELECT id FROM projects WHERE tender_id = ? LIMIT 1',
+          [tenderId]
+        );
+
+        if (existingProject) {
+          return existingProject.id;
+        }
+
         const projectResult = await tx.run(
           `
             INSERT INTO projects (
-              project_id,
               tender_id,
+              bid_id,
               complaint_id,
+              ministry_id,
+              region_id,
+              location_id,
               contractor_id,
-              title,
+              name,
               description,
-              allocated_budget,
+              category,
+              estimated_budget,
               start_date,
-              proposed_end_date,
-            assigned_by,
-            assigned_at,
-            regional_manager_id,
-            milestones
+              expected_end_date,
+              status,
+              milestones,
+              created_by
           )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `,
           [
-            generateId('PRJ'),
             tenderId,
+            bidId,
             tender.complaint_id,
+            tender.ministry_id,
+            complaint?.region_id || req.user.region || null,
+            tender.location_id || complaint?.location_id || null,
             bid.contractor_id,
-            tender.title,
+            tender.name,
             tender.description,
+            tender.category || complaint?.category || null,
             bid.amount,
             bid.proposed_start_date || null,
             bid.proposed_end_date || null,
-            req.user.id,
-            regionalManager?.id || null,
-            JSON.stringify(normalizeMilestones(milestones))
+            'assigned',
+            JSON.stringify(normalizeMilestones(milestones)),
+            req.user.id
           ]
         );
 
         await tx.run(
           'UPDATE tenders SET winning_bid_id = ?, status = ? WHERE id = ?',
-          [bidId, 'assigned', tenderId]
+          [bidId, 'bidding_closed', tenderId]
         );
-        await tx.run('UPDATE bids SET status = ? WHERE id = ?', ['accepted', bidId]);
-        await tx.run('UPDATE bids SET status = ? WHERE tender_id = ? AND id <> ?', ['rejected', tenderId, bidId]);
+        await tx.run(
+          'UPDATE bids SET status = ?, reviewed_by = ?, reviewed_at = NOW() WHERE id = ?',
+          ['selected', req.user.id, bidId]
+        );
+        await tx.run(
+          'UPDATE bids SET status = ?, reviewed_by = ?, reviewed_at = NOW() WHERE tender_id = ? AND id <> ?',
+          ['rejected', req.user.id, tenderId, bidId]
+        );
         await tx.run(
           'UPDATE complaints SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
           ['in_progress', tender.complaint_id]
@@ -286,8 +303,8 @@ const projectController = {
             submitted.role AS submitted_by_user_role,
             submitted.phone AS submitted_by_user_phone,
             submitted.address AS submitted_by_user_address,
-            submitted.is_active AS submitted_by_user_is_active,
-            submitted.is_email_verified AS submitted_by_user_is_email_verified,
+            NULL AS submitted_by_user_is_active,
+            NULL AS submitted_by_user_is_email_verified,
             submitted.created_at AS submitted_by_user_created_at,
             submitted.updated_at AS submitted_by_user_updated_at,
             reviewed.id AS reviewed_by_user_id,
@@ -296,13 +313,13 @@ const projectController = {
             reviewed.role AS reviewed_by_user_role,
             reviewed.phone AS reviewed_by_user_phone,
             reviewed.address AS reviewed_by_user_address,
-            reviewed.is_active AS reviewed_by_user_is_active,
-            reviewed.is_email_verified AS reviewed_by_user_is_email_verified,
+            NULL AS reviewed_by_user_is_active,
+            NULL AS reviewed_by_user_is_email_verified,
             reviewed.created_at AS reviewed_by_user_created_at,
             reviewed.updated_at AS reviewed_by_user_updated_at
           FROM progress_updates pu
           LEFT JOIN users submitted ON submitted.id = pu.submitted_by
-          LEFT JOIN users reviewed ON reviewed.id = pu.reviewed_by
+          LEFT JOIN users reviewed ON 1 = 0
           WHERE pu.project_id = ?
           ORDER BY pu.submitted_at DESC
         `,
@@ -333,44 +350,54 @@ const projectController = {
         return res.status(404).json({ message: 'Project not found' });
       }
 
+      if (!['approve', 'needs_rework'].includes(recommendation)) {
+        return res.status(400).json({ message: 'A valid verification recommendation is required' });
+      }
+
+      if (String(project.status || '').toLowerCase() !== 'pending_admin_verification') {
+        return res.status(400).json({ message: 'Only projects submitted for admin verification can be reviewed' });
+      }
+
       const verificationId = await withTransaction(async (tx) => {
         const verificationResult = await tx.run(
           `
             INSERT INTO verifications (
-              project_id,
-              complaint_id,
+              entity_type,
+              entity_id,
               verification_type,
               status,
               verified_by,
               verified_at,
               findings,
-              issues,
-              images,
-              rating,
-              recommendation
+              remarks
             )
-            VALUES (?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, NOW(), ?, ?)
           `,
           [
+            'project',
             id,
-            project.complaint_id,
             'final',
             recommendation === 'approve'
-              ? 'verified'
+              ? 'approved'
               : recommendation === 'needs_rework'
-                ? 'in_progress'
+                ? 'rejected'
                 : 'rejected',
             req.user.id,
             findings || null,
-            JSON.stringify(Array.isArray(issues) ? issues : issues ? [issues] : []),
-            JSON.stringify(req.files ? req.files.map(file => ({ url: `/uploads/${file.filename}` })) : []),
-            rating || null,
-            recommendation || null
+            JSON.stringify({
+              issues: Array.isArray(issues) ? issues : issues ? [issues] : [],
+              images: req.files ? req.files.map(file => ({ url: `/uploads/${file.filename}` })) : [],
+              rating: rating || null,
+              recommendation: recommendation || null
+            })
           ]
         );
 
         if (recommendation === 'approve') {
-          await tx.run('UPDATE projects SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', ['verified', id]);
+          await tx.run(
+            'UPDATE projects SET status = ?, actual_end_date = COALESCE(actual_end_date, CURDATE()), progress_percentage = 100, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            ['completed', id]
+          );
           await tx.run(
             `
               UPDATE complaints
@@ -380,16 +407,53 @@ const projectController = {
                 updated_at = CURRENT_TIMESTAMP
               WHERE id = ?
             `,
-            ['closed', project.complaint_id]
+            ['resolved', project.complaint_id]
+          );
+          await tx.run(
+            `
+              UPDATE users
+              SET
+                total_projects = CASE WHEN total_projects < 1 THEN 1 ELSE total_projects END,
+                completed_projects = completed_projects + 1,
+                updated_at = CURRENT_TIMESTAMP
+              WHERE id = ?
+            `,
+            [project.contractor_id]
           );
         } else if (recommendation === 'needs_rework') {
-          await tx.run('UPDATE projects SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', ['in_progress', id]);
+          await tx.run(
+            'UPDATE projects SET status = ?, actual_end_date = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            ['in_progress', id]
+          );
+          if (project.complaint_id) {
+            await tx.run(
+              `
+                UPDATE complaints
+                SET
+                  status = ?,
+                  updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+              `,
+              ['in_progress', project.complaint_id]
+            );
+          }
         }
 
         return verificationResult.insertId;
       });
 
-      const verification = await queryOne('SELECT * FROM verifications WHERE id = ? LIMIT 1', [verificationId]);
+      const verification = await queryOne(
+        `
+          SELECT
+            v.*,
+            ? AS project_id,
+            ? AS complaint_id
+          FROM verifications v
+          WHERE v.id = ?
+          LIMIT 1
+        `,
+        [id, project.complaint_id, verificationId]
+      );
 
       await logAlert({
         sourceType: 'project',

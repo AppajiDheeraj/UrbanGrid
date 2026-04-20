@@ -4,6 +4,7 @@ const cors = require('cors');
 const path = require('path');
 const connectDB = require('./config/db');
 const { ensureColumn, run } = require('./utils/sql');
+const { seedGovernmentAccounts } = require('./utils/seedGovernmentAccounts');
 const { security, apiLimiter, authLimiter, validateInput, sanitizeRequest } = require('./middleware/validation');
 
 dotenv.config();
@@ -23,6 +24,79 @@ const startServer = async () => {
   await connectDB();
   await ensureColumn('users', 'address', 'address VARCHAR(255) NULL', 'AFTER phone');
   await ensureColumn('users', 'pincode', 'pincode VARCHAR(10) NULL', 'AFTER address');
+  await ensureColumn('tenders', 'complaint_id', 'complaint_id BIGINT UNSIGNED NULL', 'AFTER tender_type');
+  await ensureColumn('tenders', 'winning_bid_id', 'winning_bid_id BIGINT UNSIGNED NULL', 'AFTER status');
+  await ensureColumn('tenders', 'published_at', 'published_at DATETIME NULL', 'AFTER submitted_at');
+  await ensureColumn('tenders', 'start_date', 'start_date DATE NULL', 'AFTER estimated_budget');
+  await ensureColumn('tenders', 'expected_end_date', 'expected_end_date DATE NULL', 'AFTER start_date');
+  await ensureColumn('projects', 'complaint_id', 'complaint_id BIGINT UNSIGNED NULL', 'AFTER bid_id');
+  await ensureColumn('bids', 'proposal', 'proposal TEXT NULL', 'AFTER duration_days');
+  await ensureColumn('complaints', 'ministry_id', 'ministry_id BIGINT UNSIGNED NULL', 'AFTER location_id');
+  await ensureColumn('complaints', 'department_id', 'department_id BIGINT UNSIGNED NULL', 'AFTER ministry_id');
+  await ensureColumn('complaints', 'reviewed_by', 'reviewed_by BIGINT UNSIGNED NULL', 'AFTER verified_by');
+  await ensureColumn('complaints', 'reviewed_at', 'reviewed_at DATETIME NULL', 'AFTER verified_at');
+  await ensureColumn('complaints', 'review_notes', 'review_notes TEXT NULL', 'AFTER reviewed_at');
+  await ensureColumn('complaints', 'rejection_reason', 'rejection_reason TEXT NULL', 'AFTER review_notes');
+  await ensureColumn('complaints', 'project_id', 'project_id BIGINT UNSIGNED NULL', 'AFTER department_id');
+  await ensureColumn('projects', 'progress_last_updated_by', 'progress_last_updated_by BIGINT UNSIGNED NULL', 'AFTER progress_last_updated');
+  await run(`
+    ALTER TABLE complaints
+    MODIFY COLUMN status ENUM(
+      'submitted',
+      'verified',
+      'tender_created',
+      'rejected',
+      'in_progress',
+      'pending_admin_verification',
+      'resolved',
+      'closed'
+    ) NOT NULL DEFAULT 'submitted'
+  `);
+  await run(`
+    ALTER TABLE projects
+    MODIFY COLUMN status ENUM(
+      'assigned',
+      'in_progress',
+      'on_hold',
+      'pending_admin_verification',
+      'completed',
+      'cancelled'
+    ) NOT NULL DEFAULT 'assigned'
+  `);
+  await run(`
+    CREATE TABLE IF NOT EXISTS city_reports (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      generated_by BIGINT UNSIGNED NULL,
+      report_type VARCHAR(100) NOT NULL,
+      generated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      report_data JSON NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_city_reports_generated_by (generated_by),
+      KEY idx_city_reports_generated_at (generated_at),
+      CONSTRAINT fk_city_reports_generated_by
+        FOREIGN KEY (generated_by) REFERENCES users (id)
+        ON DELETE SET NULL
+    )
+  `);
+  await run(`
+    CREATE TABLE IF NOT EXISTS user_login_attempts (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      user_id BIGINT UNSIGNED NULL,
+      email VARCHAR(190) NOT NULL,
+      ip_address VARCHAR(45) NULL,
+      user_agent TEXT NULL,
+      was_successful TINYINT(1) NOT NULL DEFAULT 0,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_user_login_attempts_user_id (user_id),
+      KEY idx_user_login_attempts_email (email),
+      KEY idx_user_login_attempts_created_at (created_at),
+      CONSTRAINT fk_user_login_attempts_user
+        FOREIGN KEY (user_id) REFERENCES users (id)
+        ON DELETE SET NULL
+    )
+  `);
   await run(`
     CREATE TABLE IF NOT EXISTS user_settings (
       id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -41,6 +115,7 @@ const startServer = async () => {
         ON DELETE CASCADE
     )
   `);
+  await seedGovernmentAccounts();
 
 // CORS configuration
 const corsOptions = {

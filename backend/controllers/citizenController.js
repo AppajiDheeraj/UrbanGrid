@@ -158,21 +158,50 @@ const citizenController = {
         locationId = locationResult.insertId;
       }
 
+      const activeProject = await queryOne(
+        `
+          SELECT
+            p.id,
+            p.ministry_id,
+            p.contractor_id
+          FROM projects p
+          LEFT JOIN complaints root_complaint ON root_complaint.id = p.complaint_id
+          LEFT JOIN locations project_loc ON project_loc.id = COALESCE(p.location_id, root_complaint.location_id)
+          WHERE project_loc.ward_no = ?
+            AND (
+              (p.category IS NOT NULL AND p.category = ?)
+              OR (root_complaint.category IS NOT NULL AND root_complaint.category = ?)
+            )
+            AND p.status IN ('assigned', 'in_progress', 'on_hold', 'pending_admin_verification')
+          ORDER BY p.updated_at DESC, p.id DESC
+          LIMIT 1
+        `,
+        [wardNo, category || null, category || null]
+      );
+
       const result = await run(
         `
           INSERT INTO complaints (
             citizen_id,
             location_id,
+            ministry_id,
+            project_id,
+            contractor_notified_at,
+            status,
             issue_title,
             issue_description,
             category,
             images
           )
-          VALUES (?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           req.user.id,
           locationId,
+          activeProject?.ministry_id || null,
+          activeProject?.id || null,
+          activeProject ? new Date() : null,
+          activeProject ? 'in_progress' : 'submitted',
           title.trim(),
           description.trim(),
           category || null,
@@ -191,13 +220,16 @@ const citizenController = {
       );
 
       res.status(201).json({
-        message: 'Complaint submitted successfully',
+        message: activeProject
+          ? 'Complaint submitted and linked to the existing active project'
+          : 'Complaint submitted successfully',
         complaint: {
           id: complaint.id,
           _id: complaint.id,
           complaintId: complaint.id,
           title: complaint.issue_title,
           status: complaint.status,
+          projectId: activeProject?.id || null,
           wardNo,
           submittedAt: complaint.created_at
         }
@@ -216,6 +248,7 @@ const citizenController = {
             c.id AS complaint_id,
             c.citizen_id,
             c.location_id,
+            c.project_id,
             c.issue_title,
             c.issue_description,
             c.category,
@@ -249,7 +282,7 @@ const citizenController = {
             NULL AS department_ref_created_at,
             NULL AS department_ref_updated_at,
             t.id AS tender_ref_id,
-            t.tender_id AS tender_ref_tender_id,
+            t.id AS tender_ref_tender_id,
             t.status AS tender_ref_status
           FROM complaints c
           LEFT JOIN locations loc ON loc.id = c.location_id
@@ -283,6 +316,7 @@ const citizenController = {
             c.id AS complaint_id,
             c.citizen_id,
             c.location_id,
+            c.project_id,
             c.issue_title,
             c.issue_description,
             c.category,
@@ -349,7 +383,7 @@ const citizenController = {
         return res.status(404).json({ message: 'Complaint not found' });
       }
 
-      const tenderRow = await queryOne('SELECT * FROM tenders WHERE complaint_id = ? LIMIT 1', [row.id]);
+      const tenderRow = await queryOne('SELECT * FROM tenders WHERE complaint_id = ? LIMIT 1', [row.complaint_id]);
 
       const complaint = mapComplaint(row, {
         ministry: mapMinistry(row, 'ministry_ref_'),
@@ -389,6 +423,7 @@ const citizenController = {
             c.id AS complaint_id,
             c.citizen_id,
             c.location_id,
+            c.project_id,
             c.issue_title,
             c.issue_description,
             c.category,
@@ -421,7 +456,7 @@ const citizenController = {
             vote_stats.vote_average,
             my_vote.vote_value AS my_vote,
             CASE
-              WHEN c.citizen_id <> ? AND loc.ward_no = ? AND c.status NOT IN ('resolved') THEN 1
+              WHEN c.citizen_id <> ? AND loc.ward_no = ? AND c.status NOT IN ('resolved', 'rejected', 'pending_admin_verification', 'completed', 'closed') THEN 1
               ELSE 0
             END AS can_vote
           FROM complaints c
@@ -434,7 +469,7 @@ const citizenController = {
           ) vote_stats ON vote_stats.complaint_id = c.id
           LEFT JOIN complaint_votes my_vote
             ON my_vote.complaint_id = c.id AND my_vote.voter_user_id = ?
-          WHERE loc.ward_no = ? AND c.status NOT IN ('resolved')
+          WHERE loc.ward_no = ? AND c.status NOT IN ('resolved', 'rejected', 'closed')
           ORDER BY COALESCE(vote_stats.vote_average, 0) DESC, c.created_at DESC
         `,
         [req.user.id, wardNo, req.user.id, wardNo]
@@ -469,7 +504,17 @@ const citizenController = {
       }
 
       const complaint = await queryOne(
-        'SELECT id, citizen_id, ward_no, status FROM complaints WHERE id = ? LIMIT 1',
+        `
+          SELECT
+            c.id,
+            c.citizen_id,
+            c.status,
+            loc.ward_no
+          FROM complaints c
+          LEFT JOIN locations loc ON loc.id = c.location_id
+          WHERE c.id = ?
+          LIMIT 1
+        `,
         [id]
       );
 
@@ -485,8 +530,8 @@ const citizenController = {
         return res.status(403).json({ message: 'You cannot vote on your own complaint' });
       }
 
-      if (['completed', 'closed'].includes(complaint.status)) {
-        return res.status(400).json({ message: 'This complaint has already been resolved' });
+      if (['resolved', 'rejected', 'pending_admin_verification', 'completed', 'closed'].includes(String(complaint.status || '').toLowerCase())) {
+        return res.status(400).json({ message: 'Voting is closed for this complaint' });
       }
 
       await run(
@@ -494,16 +539,14 @@ const citizenController = {
           INSERT INTO complaint_votes (
             complaint_id,
             voter_user_id,
-            ward_no,
             vote_value
           )
-          VALUES (?, ?, ?, ?)
+          VALUES (?, ?, ?)
           ON DUPLICATE KEY UPDATE
-            ward_no = VALUES(ward_no),
             vote_value = VALUES(vote_value),
             updated_at = CURRENT_TIMESTAMP
         `,
-        [id, req.user.id, wardNo, normalizedVote]
+        [id, req.user.id, normalizedVote]
       );
 
       const summary = await queryOne(
@@ -534,20 +577,19 @@ const citizenController = {
       const row = await queryOne(
         `
           SELECT
-            c.id,
-            c.complaint_id,
+            c.id AS complaint_id,
             c.status,
-            c.submitted_at,
+            c.created_at,
             c.reviewed_at,
             c.official_viewed_at,
             c.contractor_notified_at,
             c.work_completed_at,
             t.id AS tender_id,
-            t.tender_id AS tender_public_id,
             t.status AS tender_status
           FROM complaints c
           LEFT JOIN tenders t ON t.complaint_id = c.id
-          WHERE c.id = ? AND (c.citizen_id = ? OR c.ward_no = ?)
+          LEFT JOIN locations loc ON loc.id = c.location_id
+          WHERE c.id = ? AND (c.citizen_id = ? OR loc.ward_no = ?)
           LIMIT 1
         `,
         [req.params.id, req.user.id, req.user.wardNo || req.user.pincode || null]
@@ -560,7 +602,7 @@ const citizenController = {
       res.json({
         complaintId: row.complaint_id,
         status: row.status,
-        submittedAt: row.submitted_at,
+        submittedAt: row.created_at,
         reviewedAt: row.reviewed_at,
         officialViewedAt: row.official_viewed_at,
         contractorNotifiedAt: row.contractor_notified_at,
@@ -569,7 +611,7 @@ const citizenController = {
           ? {
               _id: row.tender_id,
               id: row.tender_id,
-              tenderId: row.tender_public_id,
+              tenderId: row.tender_id,
               status: row.tender_status
             }
           : null,
@@ -577,7 +619,7 @@ const citizenController = {
           {
             key: 'received',
             label: 'Complaint received',
-            completedAt: row.submitted_at
+            completedAt: row.created_at
           },
           {
             key: 'viewed',

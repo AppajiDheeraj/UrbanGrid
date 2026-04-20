@@ -100,24 +100,12 @@ const authController = {
         return res.status(400).json({ message: 'User already exists' });
       }
 
-      const allowedRoles = [
-        'citizen',
-        'contractor',
-        'admin',
-        'ministry_officer',
-        'department_head',
-        'senior_official',
-        'regional_manager'
-      ];
+      const allowedRoles = ['citizen', 'contractor'];
       const normalizedRole = String(role || '').trim().toLowerCase();
-      const normalizedOfficialRole = String(officialRole || '').trim().toLowerCase();
-      const userRole =
-        normalizedRole === 'government'
-          ? (normalizedOfficialRole || 'ministry_officer')
-          : (normalizedRole || normalizedOfficialRole || 'citizen');
+      const userRole = normalizedRole || 'citizen';
 
       if (!allowedRoles.includes(userRole)) {
-        return res.status(403).json({ message: 'Invalid role for registration' });
+        return res.status(403).json({ message: 'Only resident and contractor registration is available publicly' });
       }
 
       const normalizedWardNo = wardNo ? String(wardNo).trim() : null;
@@ -336,7 +324,7 @@ const authController = {
         return res.status(401).json({ message: 'Invalid credentials' });
       }
 
-      if (!userRow.is_active) {
+      if (userRow.is_active != null && !Boolean(userRow.is_active)) {
         return res.status(401).json({ message: 'Account is deactivated' });
       }
 

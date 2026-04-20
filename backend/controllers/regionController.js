@@ -9,36 +9,37 @@ const regionController = {
           SELECT
             p.*,
             t.id AS tender_ref_id,
-            t.tender_id AS tender_ref_tender_id,
-            t.title AS tender_ref_title,
+            t.id AS tender_ref_tender_id,
+            t.name AS tender_ref_title,
             c.id AS complaint_ref_id,
-            c.title AS complaint_ref_title,
+            c.issue_title AS complaint_ref_title,
             c.category AS complaint_ref_category,
-            c.address AS complaint_ref_address,
-            c.pin_code AS complaint_ref_pin_code,
+            loc.address AS complaint_ref_address,
+            loc.pincode AS complaint_ref_pin_code,
             contractor.id AS contractor_ref_id,
-            contractor.user_id AS contractor_ref_user_id,
+            contractor.id AS contractor_ref_user_id,
             contractor.company_name AS contractor_ref_company_name,
             contractor.registration_number AS contractor_ref_registration_number,
-            contractor.gst_number AS contractor_ref_gst_number,
+            NULL AS contractor_ref_gst_number,
             contractor.address AS contractor_ref_address,
             contractor.phone AS contractor_ref_phone,
-            contractor.specializations AS contractor_ref_specializations,
-            contractor.past_projects AS contractor_ref_past_projects,
-            contractor.rating AS contractor_ref_rating,
-            contractor.documents AS contractor_ref_documents,
-            contractor.is_verified AS contractor_ref_is_verified,
-            contractor.is_active AS contractor_ref_is_active,
+            NULL AS contractor_ref_specializations,
+            contractor.total_projects AS contractor_ref_past_projects,
+            contractor.contractor_rating AS contractor_ref_rating,
+            NULL AS contractor_ref_documents,
+            NULL AS contractor_ref_is_verified,
+            NULL AS contractor_ref_is_active,
             contractor.created_at AS contractor_ref_created_at,
             contractor.updated_at AS contractor_ref_updated_at
           FROM projects p
           LEFT JOIN tenders t ON t.id = p.tender_id
           LEFT JOIN complaints c ON c.id = p.complaint_id
-          LEFT JOIN contractors contractor ON contractor.id = p.contractor_id
-          WHERE p.regional_manager_id = ?
+          LEFT JOIN locations loc ON loc.id = c.location_id
+          LEFT JOIN users contractor ON contractor.id = p.contractor_id
+          WHERE p.region_id = ?
           ORDER BY p.created_at DESC
         `,
-        [req.user.id]
+        [req.user.region]
       );
 
       const projects = rows.map(row =>
@@ -83,8 +84,8 @@ const regionController = {
             citizen.role AS citizen_role,
             citizen.phone AS citizen_phone,
             citizen.address AS citizen_address,
-            citizen.is_active AS citizen_is_active,
-            citizen.is_email_verified AS citizen_is_email_verified,
+            NULL AS citizen_is_active,
+            NULL AS citizen_is_email_verified,
             citizen.created_at AS citizen_created_at,
             citizen.updated_at AS citizen_updated_at,
             m.id AS ministry_ref_id,
@@ -92,8 +93,9 @@ const regionController = {
             m.code AS ministry_ref_code
           FROM complaints c
           LEFT JOIN users citizen ON citizen.id = c.citizen_id
-          LEFT JOIN ministries m ON m.id = c.ministry_id
-          WHERE c.region_id = ?
+          LEFT JOIN locations loc ON loc.id = c.location_id
+          LEFT JOIN ministries m ON m.id = COALESCE(c.ministry_id, c.routed_to_ministry_id)
+          WHERE loc.region_id = ?
           ORDER BY c.created_at DESC
         `,
         [req.user.region]
@@ -125,10 +127,10 @@ const regionController = {
         `
           SELECT *
           FROM projects
-          WHERE id = ? AND regional_manager_id = ?
+          WHERE id = ? AND region_id = ?
           LIMIT 1
         `,
-        [req.params.id, req.user.id]
+        [req.params.id, req.user.region]
       );
 
       if (!row) {

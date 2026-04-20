@@ -11,18 +11,35 @@ const createAlert = async ({
   const result = await run(
     `
       INSERT INTO alerts (
-        source_type,
-        source_id,
-        alert_level,
-        message,
-        status
+        entity_type,
+        entity_id,
+        alert_type,
+        severity,
+        message
       )
       VALUES (?, ?, ?, ?, ?)
     `,
-    [sourceType, sourceId, alertLevel, message, status]
+    [sourceType, sourceId || 0, status, alertLevel, message]
   );
 
-  return queryOne('SELECT * FROM alerts WHERE id = ? LIMIT 1', [result.insertId]);
+  return queryOne(
+    `
+      SELECT
+        id,
+        entity_type AS source_type,
+        entity_id AS source_id,
+        severity AS alert_level,
+        message,
+        CASE WHEN resolved_at IS NULL THEN 'open' ELSE 'resolved' END AS status,
+        resolved_at,
+        resolved_by,
+        created_at
+      FROM alerts
+      WHERE id = ?
+      LIMIT 1
+    `,
+    [result.insertId]
+  );
 };
 
 const listAlerts = async ({ status, sourceType, limit = 50, offset = 0 } = {}) => {
@@ -30,19 +47,35 @@ const listAlerts = async ({ status, sourceType, limit = 50, offset = 0 } = {}) =
   const params = [];
 
   if (status) {
-    filters.push('status = ?');
-    params.push(status);
+    filters.push(status === 'resolved' ? 'resolved_at IS NOT NULL' : 'resolved_at IS NULL');
   }
 
   if (sourceType) {
-    filters.push('source_type = ?');
+    filters.push('entity_type = ?');
     params.push(sourceType);
   }
 
   const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+  const safeLimit = Number(limit);
+  const safeOffset = Number(offset);
   const rows = await query(
-    `SELECT * FROM alerts ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
-    [...params, limit, offset]
+    `
+      SELECT
+        id,
+        entity_type AS source_type,
+        entity_id AS source_id,
+        severity AS alert_level,
+        message,
+        CASE WHEN resolved_at IS NULL THEN 'open' ELSE 'resolved' END AS status,
+        resolved_at,
+        resolved_by,
+        created_at
+      FROM alerts
+      ${whereClause}
+      ORDER BY created_at DESC
+      LIMIT ${safeLimit} OFFSET ${safeOffset}
+    `,
+    params
   );
 
   return rows.map(mapAlert);
@@ -52,13 +85,30 @@ const resolveAlert = async (id, resolvedBy) => {
   await run(
     `
       UPDATE alerts
-      SET status = 'resolved', resolved_at = NOW(), resolved_by = ?
+      SET resolved_at = NOW(), resolved_by = ?
       WHERE id = ?
     `,
     [resolvedBy, id]
   );
 
-  return queryOne('SELECT * FROM alerts WHERE id = ? LIMIT 1', [id]);
+  return queryOne(
+    `
+      SELECT
+        id,
+        entity_type AS source_type,
+        entity_id AS source_id,
+        severity AS alert_level,
+        message,
+        CASE WHEN resolved_at IS NULL THEN 'open' ELSE 'resolved' END AS status,
+        resolved_at,
+        resolved_by,
+        created_at
+      FROM alerts
+      WHERE id = ?
+      LIMIT 1
+    `,
+    [id]
+  );
 };
 
 module.exports = {

@@ -21,7 +21,9 @@ const statusConfig = {
   rejected: { color: 'bg-red-500', icon: XCircle, label: 'Rejected' },
   tender_created: { color: 'bg-purple-500', icon: FileText, label: 'Tender Created' },
   in_progress: { color: 'bg-orange-500', icon: AlertCircle, label: 'In Progress' },
+  pending_admin_verification: { color: 'bg-yellow-500', icon: Clock, label: 'Pending Admin Verification' },
   completed: { color: 'bg-green-600', icon: CheckCircle, label: 'Completed' },
+  resolved: { color: 'bg-green-600', icon: CheckCircle, label: 'Resolved' },
   closed: { color: 'bg-gray-500', icon: CheckCircle, label: 'Closed' },
 };
 
@@ -69,7 +71,9 @@ const ComplaintTracker = ({ complaintId }) => {
       'verified',
       'tender_created',
       'in_progress',
+      'pending_admin_verification',
       'completed',
+      'resolved',
       'closed'
     ];
     

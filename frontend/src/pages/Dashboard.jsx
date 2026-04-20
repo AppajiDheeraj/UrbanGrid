@@ -86,7 +86,8 @@ const roleCopy = {
 
 const statusTone = (status) => {
   const value = String(status || "").toLowerCase();
-  if (["approved", "verified", "completed", "published"].includes(value)) return "bg-emerald-500/15 text-emerald-700";
+  if (["approved", "verified", "completed", "published", "resolved"].includes(value)) return "bg-emerald-500/15 text-emerald-700";
+  if (["pending_admin_verification"].includes(value)) return "bg-amber-500/15 text-amber-700";
   if (["rejected", "cancelled", "closed"].includes(value)) return "bg-red-500/15 text-red-700";
   if (["pending", "submitted", "draft", "under_review", "pending_approval"].includes(value)) return "bg-amber-500/15 text-amber-700";
   return "bg-slate-500/15 text-slate-700";
@@ -117,6 +118,7 @@ export default function DashboardPage() {
     reports: [],
     alerts: [],
     milestones: [],
+    bidsByTender: {},
     selectedProjectId: null
   });
   const [reportBusy, setReportBusy] = useState(false);
@@ -141,6 +143,22 @@ export default function DashboardPage() {
   });
   const [selectedComplaintId, setSelectedComplaintId] = useState(null);
   const [voteBusyId, setVoteBusyId] = useState(null);
+  const [tenderBusyId, setTenderBusyId] = useState(null);
+  const [bidLoadBusyId, setBidLoadBusyId] = useState(null);
+  const [selectBidBusyId, setSelectBidBusyId] = useState(null);
+  const [completeBusy, setCompleteBusy] = useState(false);
+  const [verifyBusyId, setVerifyBusyId] = useState(null);
+  const [tenderDrafts, setTenderDrafts] = useState({});
+  const [masterTenderForm, setMasterTenderForm] = useState({
+    title: "",
+    category: "road_damage",
+    wardNo: "",
+    area: "",
+    estimatedBudget: "",
+    startDate: "",
+    endDate: "",
+    biddingDeadline: ""
+  });
 
   const config = roleCopy[user?.role] || roleCopy.citizen;
   const wardLabel = user?.wardNo || user?.ward_no || user?.pincode || "N/A";
@@ -181,8 +199,8 @@ export default function DashboardPage() {
           const selectedComplaint = complaints[0] || null;
           setStats({
             totalComplaints: complaints.length,
-            inReview: complaints.filter((item) => !item.tracking?.officialViewedAt && item.status !== "closed").length,
-            inProgress: complaints.filter((item) => item.tracking?.officialViewedAt && !item.tracking?.workCompletedAt && item.status !== "closed").length
+            inReview: complaints.filter((item) => !item.tracking?.officialViewedAt && !["resolved", "closed", "rejected"].includes(item.status)).length,
+            inProgress: complaints.filter((item) => ["in_progress", "pending_admin_verification"].includes(item.status)).length
           });
           setPanelData((prev) => ({
             ...prev,
@@ -190,10 +208,11 @@ export default function DashboardPage() {
           }));
           setSelectedComplaintId(selectedComplaint ? (selectedComplaint.id || selectedComplaint._id) : null);
         } else if (user?.role === "contractor") {
-          const [tendersRes, bidsRes, projectsRes] = await Promise.all([
+          const [tendersRes, bidsRes, projectsRes, complaintsRes] = await Promise.all([
             contractorAPI.getAvailableTenders(),
             contractorAPI.getMyBids(),
-            contractorAPI.getMyProjects()
+            contractorAPI.getMyProjects(),
+            contractorAPI.getAssignedComplaints()
           ]);
 
           const projects = projectsRes.data.projects || [];
@@ -211,6 +230,7 @@ export default function DashboardPage() {
           });
           setPanelData((prev) => ({
             ...prev,
+            complaints: asList(complaintsRes.data.complaints),
             tenders: asList(availableTenders),
             projects: asList(projects),
             selectedProjectId,
@@ -218,10 +238,12 @@ export default function DashboardPage() {
           }));
           setSelectedTenderId(selectedTenderId);
         } else if (user?.role === "admin") {
-          const [statsRes, reportsRes, alertsRes] = await Promise.all([
+          const [statsRes, reportsRes, alertsRes, pendingProjectRes, tendersRes] = await Promise.all([
             adminAPI.getDashboardStats(),
             reportAPI.list({ limit: 5 }),
-            alertAPI.list({ limit: 5 })
+            alertAPI.list({ limit: 5 }),
+            projectAPI.getProjects({ status: "pending_admin_verification" }),
+            ministryAPI.getTenders()
           ]);
 
           if (!alive) return;
@@ -231,8 +253,12 @@ export default function DashboardPage() {
             ...prev,
             complaints: asList(statsRes.data.recentComplaints),
             reports: asList(reportsRes.data.reports),
-            alerts: asList(alertsRes.data.alerts)
+            alerts: asList(alertsRes.data.alerts),
+            projects: asList(pendingProjectRes.data.projects),
+            tenders: asList(tendersRes.data.tenders).slice(0, 10)
           }));
+          const adminTenders = asList(tendersRes.data.tenders);
+          setSelectedTenderId(adminTenders[0] ? adminTenders[0].id || adminTenders[0]._id : null);
         } else if (user?.role === "regional_manager") {
           const [projectsRes, complaintsRes] = await Promise.all([
             regionAPI.getProjects(),
@@ -248,7 +274,7 @@ export default function DashboardPage() {
           setStats({
             regionalProjects: projects.length,
             regionalComplaints: complaintsRes.data.complaints?.length || 0,
-            activeRegionalProjects: projects.filter((item) => item.status === "in_progress").length
+            activeRegionalProjects: projects.filter((item) => ["in_progress", "pending_admin_verification"].includes(item.status)).length
           });
           setPanelData((prev) => ({
             ...prev,
@@ -313,14 +339,16 @@ export default function DashboardPage() {
 
   const refreshAdminExtras = async () => {
     try {
-      const [reportsRes, alertsRes] = await Promise.all([
+      const [reportsRes, alertsRes, pendingProjectRes] = await Promise.all([
         reportAPI.list({ limit: 5 }),
-        alertAPI.list({ limit: 5 })
+        alertAPI.list({ limit: 5 }),
+        projectAPI.getProjects({ status: "pending_admin_verification" })
       ]);
       setPanelData((prev) => ({
         ...prev,
         reports: asList(reportsRes.data.reports),
-        alerts: asList(alertsRes.data.alerts)
+        alerts: asList(alertsRes.data.alerts),
+        projects: asList(pendingProjectRes.data.projects)
       }));
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to refresh admin data");
@@ -438,6 +466,57 @@ export default function DashboardPage() {
     }
   };
 
+  const handleMarkProjectComplete = async () => {
+    if (!selectedProject) {
+      toast.error("Pick a project first");
+      return;
+    }
+
+    setCompleteBusy(true);
+    try {
+      const payload = new FormData();
+      payload.append("completionNotes", progressForm.description || progressForm.title || "Work completed and ready for admin review");
+      progressFiles.forEach((file) => payload.append("images", file));
+
+      const { data } = await contractorAPI.markComplete(selectedProject.id || selectedProject._id, payload);
+      toast.success(data.message || "Completion submitted for admin verification");
+      setPanelData((prev) => ({
+        ...prev,
+        projects: prev.projects.map((item) =>
+          String(item.id || item._id) === String(selectedProject.id || selectedProject._id)
+            ? { ...item, ...(data.project || {}), status: "pending_admin_verification" }
+            : item
+        ),
+        complaints: prev.complaints.map((item) =>
+          String(item.project?.id || item.project || "") === String(selectedProject.id || selectedProject._id)
+            ? { ...item, status: "pending_admin_verification" }
+            : item
+        )
+      }));
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to submit completion");
+    } finally {
+      setCompleteBusy(false);
+    }
+  };
+
+  const handleVerifyProjectCompletion = async (projectId, recommendation) => {
+    setVerifyBusyId(`${projectId}-${recommendation}`);
+    try {
+      const payload = new FormData();
+      payload.append("recommendation", recommendation);
+      payload.append("findings", recommendation === "approve" ? "Work verified by admin" : "Needs rework before closure");
+
+      await projectAPI.verifyCompletion(projectId, payload);
+      toast.success(recommendation === "approve" ? "Project completion approved" : "Project sent back for rework");
+      await refreshAdminExtras();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to verify project completion");
+    } finally {
+      setVerifyBusyId(null);
+    }
+  };
+
   const handleVoteComplaint = async (complaintId, voteValue) => {
     setVoteBusyId(complaintId);
     try {
@@ -456,6 +535,164 @@ export default function DashboardPage() {
       toast.error(error.response?.data?.message || "Failed to record vote");
     } finally {
       setVoteBusyId(null);
+    }
+  };
+
+  const updateTenderDraft = (complaintId, field, value) => {
+    setTenderDrafts((prev) => ({
+      ...prev,
+      [complaintId]: {
+        ...(prev[complaintId] || {}),
+        [field]: value
+      }
+    }));
+  };
+
+  const handleCreateTender = async (complaint) => {
+    const complaintId = complaint.id || complaint._id;
+    const draft = tenderDrafts[complaintId] || {};
+    const title = draft.title || complaint.title || `Tender for complaint ${complaintId}`;
+    const estimatedBudget = draft.estimatedBudget;
+
+    if (!estimatedBudget) {
+      toast.error("Enter an estimated budget before creating a tender");
+      return;
+    }
+
+    setTenderBusyId(`create-${complaintId}`);
+    try {
+      const { data } = await ministryAPI.createTender({
+        complaintId,
+        title,
+        description: draft.description || complaint.description || "",
+        estimatedBudget,
+        startDate: draft.startDate || null,
+        endDate: draft.endDate || null,
+        biddingDeadline: draft.biddingDeadline || draft.endDate || null
+      });
+      toast.success("Tender created");
+      setPanelData((prev) => ({
+        ...prev,
+        tenders: [data.tender, ...prev.tenders].filter(Boolean),
+        complaints: prev.complaints.map((item) =>
+          String(item.id || item._id) === String(complaintId)
+            ? { ...item, status: "tender_created", tender: data.tender }
+            : item
+        )
+      }));
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to create tender");
+    } finally {
+      setTenderBusyId(null);
+    }
+  };
+
+  const handleCreateMasterTender = async (event) => {
+    event.preventDefault();
+
+    if (!masterTenderForm.title || !masterTenderForm.category || !masterTenderForm.wardNo || !masterTenderForm.estimatedBudget) {
+      toast.error("Title, category, ward number, and budget are required");
+      return;
+    }
+
+    setTenderBusyId("create-master");
+    try {
+      const { data } = await ministryAPI.createTender({
+        title: masterTenderForm.title,
+        category: masterTenderForm.category,
+        wardNo: masterTenderForm.wardNo,
+        area: masterTenderForm.area,
+        estimatedBudget: masterTenderForm.estimatedBudget,
+        startDate: masterTenderForm.startDate || null,
+        endDate: masterTenderForm.endDate || null,
+        biddingDeadline: masterTenderForm.biddingDeadline || masterTenderForm.endDate || null
+      });
+      toast.success("Tender created");
+      setPanelData((prev) => ({
+        ...prev,
+        tenders: [data.tender, ...prev.tenders].filter(Boolean)
+      }));
+      setSelectedTenderId(data.tender?.id || data.tender?._id || null);
+      setMasterTenderForm({
+        title: "",
+        category: "road_damage",
+        wardNo: masterTenderForm.wardNo,
+        area: "",
+        estimatedBudget: "",
+        startDate: "",
+        endDate: "",
+        biddingDeadline: ""
+      });
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to create tender");
+    } finally {
+      setTenderBusyId(null);
+    }
+  };
+
+  const handlePublishTender = async (tenderId) => {
+    setTenderBusyId(`publish-${tenderId}`);
+    try {
+      const { data } = await ministryAPI.publishTender(tenderId);
+      toast.success("Tender published for contractors");
+      setPanelData((prev) => ({
+        ...prev,
+        tenders: prev.tenders.map((item) =>
+          String(item.id || item._id) === String(tenderId)
+            ? { ...item, ...(data.tender || {}), status: "published" }
+            : item
+        )
+      }));
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to publish tender");
+    } finally {
+      setTenderBusyId(null);
+    }
+  };
+
+  const handleLoadTenderBids = async (tenderId) => {
+    setBidLoadBusyId(tenderId);
+    try {
+      const { data } = await ministryAPI.getBids(tenderId);
+      setPanelData((prev) => ({
+        ...prev,
+        bidsByTender: {
+          ...prev.bidsByTender,
+          [tenderId]: asList(data.bids)
+        }
+      }));
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to load bids");
+    } finally {
+      setBidLoadBusyId(null);
+    }
+  };
+
+  const handleSelectWinningBid = async (tenderId, bidId) => {
+    setSelectBidBusyId(bidId);
+    try {
+      const { data } = await ministryAPI.selectBid(tenderId, bidId);
+      toast.success("Winning bid selected and project assigned");
+      setPanelData((prev) => ({
+        ...prev,
+        tenders: prev.tenders.map((item) =>
+          String(item.id || item._id) === String(tenderId)
+            ? { ...item, ...(data.tender || {}), status: "bidding_closed" }
+            : item
+        ),
+        bidsByTender: {
+          ...prev.bidsByTender,
+          [tenderId]: asList(prev.bidsByTender[tenderId]).map((bid) =>
+            String(bid.id || bid._id) === String(bidId)
+              ? { ...bid, status: "selected" }
+              : { ...bid, status: bid.status === "selected" ? "rejected" : bid.status }
+          )
+        }
+      }));
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to select bid");
+    } finally {
+      setSelectBidBusyId(null);
     }
   };
 
@@ -553,6 +790,61 @@ export default function DashboardPage() {
                   ))
                 )}
               </div>
+            </div>
+          </section>
+        )}
+
+        {user?.role === "admin" && (
+          <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold">Completion Reviews</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Contractors submit finished work here first. Once you verify it, the final resolved update flows through to residents.
+                </p>
+              </div>
+              <Badge variant="outline">{panelData.projects.length}</Badge>
+            </div>
+            <div className="mt-5 space-y-3">
+              {panelData.projects.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No contractor completion requests waiting right now.</p>
+              ) : (
+                panelData.projects.map((project) => (
+                  <div key={project.id || project._id} className="rounded-xl border border-border/60 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-medium">{project.title || project.projectId || `Project ${project.id || project._id}`}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {project.complaint?.title || "No linked complaint title"} | Contractor {project.contractor?.companyName || project.contractor?.name || "Assigned contractor"}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Updated {formatDate(project.updatedAt || project.createdAt)}
+                        </p>
+                      </div>
+                      <Badge className={statusTone(project.status)}>{project.status}</Badge>
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={Boolean(verifyBusyId)}
+                        onClick={() => handleVerifyProjectCompletion(project.id || project._id, "approve")}
+                      >
+                        {verifyBusyId === `${project.id || project._id}-approve` ? "Approving..." : "Approve Completion"}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={Boolean(verifyBusyId)}
+                        onClick={() => handleVerifyProjectCompletion(project.id || project._id, "needs_rework")}
+                      >
+                        {verifyBusyId === `${project.id || project._id}-needs_rework` ? "Sending..." : "Send Back For Rework"}
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </section>
         )}
@@ -682,6 +974,40 @@ export default function DashboardPage() {
         )}
 
         {user?.role === "contractor" && (
+          <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold">Complaints On My Tender Work</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  New complaints linked to your active tender/project show up here instead of creating a separate tender.
+                </p>
+              </div>
+              <Badge variant="outline">{panelData.complaints.length}</Badge>
+            </div>
+            <div className="mt-5 space-y-3">
+              {panelData.complaints.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No linked complaints right now.</p>
+              ) : (
+                panelData.complaints.map((complaint) => (
+                  <div key={complaint.id || complaint._id} className="rounded-xl border border-border/60 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="font-medium">{complaint.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {complaint.project?.title || `Project ${complaint.project?.id || complaint.project || "N/A"}`} | {formatDate(complaint.submittedAt || complaint.createdAt)}
+                        </p>
+                      </div>
+                      <Badge className={statusTone(complaint.status)}>{complaint.status || "submitted"}</Badge>
+                    </div>
+                    <p className="mt-2 text-sm text-muted-foreground">{complaint.description || "No description"}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+        )}
+
+        {user?.role === "contractor" && (
           <section className="grid gap-6 lg:grid-cols-2">
             <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
               <div className="flex items-center justify-between gap-3">
@@ -714,7 +1040,7 @@ export default function DashboardPage() {
                           <div>
                             <p className="font-medium">{tender.title}</p>
                             <p className="text-xs text-muted-foreground">
-                              {tender.tenderId || tenderId} | {tender.complaint?.title || "No complaint title"}
+                              {tender.tenderId || tenderId} | {tender.complaint?.title || `${tender.category?.replaceAll("_", " ") || "General work"}${tender.location?.wardNo ? ` - Ward ${tender.location.wardNo}` : ""}`}
                             </p>
                           </div>
                           <Badge className={statusTone(tender.status)}>{tender.status}</Badge>
@@ -887,19 +1213,121 @@ export default function DashboardPage() {
                 <Button type="submit" className="w-full" disabled={progressBusy || !selectedProject}>
                   {progressBusy ? "Updating..." : "Update Progress"}
                 </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  disabled={
+                    completeBusy ||
+                    !selectedProject ||
+                    selectedProject?.status === "pending_admin_verification" ||
+                    selectedProject?.status === "completed"
+                  }
+                  onClick={handleMarkProjectComplete}
+                >
+                  {completeBusy
+                    ? "Submitting..."
+                    : selectedProject?.status === "pending_admin_verification"
+                      ? "Waiting For Admin Verification"
+                      : "Submit Completion For Admin Review"}
+                </Button>
               </form>
             </div>
           </section>
         )}
 
-        {(user?.role === "ministry_officer" || user?.role === "department_head" || user?.role === "senior_official" || user?.role === "regional_manager") && (
+        {(user?.role === "admin" || user?.role === "ministry_officer" || user?.role === "department_head" || user?.role === "senior_official" || user?.role === "regional_manager") && (
           <section className="grid gap-6 lg:grid-cols-2">
             <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
               <h2 className="text-lg font-semibold">
-                {user?.role === "regional_manager" ? "Regional Complaints" : "Recent Routed Complaints"}
+                {user?.role === "admin" ? "Create Government Tender" : user?.role === "regional_manager" ? "Regional Complaints" : "Recent Routed Complaints"}
               </h2>
               <div className="mt-5 space-y-3">
-                {panelData.complaints.length === 0 ? (
+                {user?.role === "admin" ? (
+                  <form className="space-y-4" onSubmit={handleCreateMasterTender}>
+                    <label className="space-y-2 block">
+                      <span className="text-sm font-medium">Tender Title</span>
+                      <Input
+                        value={masterTenderForm.title}
+                        onChange={(event) => setMasterTenderForm((prev) => ({ ...prev, title: event.target.value }))}
+                        placeholder="Road Work - Ward 11"
+                      />
+                    </label>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <label className="space-y-2">
+                        <span className="text-sm font-medium">Category</span>
+                        <select
+                          value={masterTenderForm.category}
+                          onChange={(event) => setMasterTenderForm((prev) => ({ ...prev, category: event.target.value }))}
+                          className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                        >
+                          <option value="road_damage">Road Damage</option>
+                          <option value="drainage">Drainage</option>
+                          <option value="water_leakage">Water Leakage</option>
+                          <option value="streetlight_failure">Streetlight Failure</option>
+                          <option value="garbage">Garbage</option>
+                        </select>
+                      </label>
+                      <label className="space-y-2">
+                        <span className="text-sm font-medium">Ward Number</span>
+                        <Input
+                          value={masterTenderForm.wardNo}
+                          onChange={(event) => setMasterTenderForm((prev) => ({ ...prev, wardNo: event.target.value }))}
+                          placeholder="11"
+                        />
+                      </label>
+                    </div>
+                    <label className="space-y-2 block">
+                      <span className="text-sm font-medium">Area / Address</span>
+                      <Input
+                        value={masterTenderForm.area}
+                        onChange={(event) => setMasterTenderForm((prev) => ({ ...prev, area: event.target.value }))}
+                        placeholder="Main Road, Ward 11"
+                      />
+                    </label>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <label className="space-y-2">
+                        <span className="text-sm font-medium">Estimated Budget</span>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={masterTenderForm.estimatedBudget}
+                          onChange={(event) => setMasterTenderForm((prev) => ({ ...prev, estimatedBudget: event.target.value }))}
+                          placeholder="500000"
+                        />
+                      </label>
+                      <label className="space-y-2">
+                        <span className="text-sm font-medium">Bidding Deadline</span>
+                        <Input
+                          type="date"
+                          value={masterTenderForm.biddingDeadline}
+                          onChange={(event) => setMasterTenderForm((prev) => ({ ...prev, biddingDeadline: event.target.value }))}
+                        />
+                      </label>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <label className="space-y-2">
+                        <span className="text-sm font-medium">Start Date</span>
+                        <Input
+                          type="date"
+                          value={masterTenderForm.startDate}
+                          onChange={(event) => setMasterTenderForm((prev) => ({ ...prev, startDate: event.target.value }))}
+                        />
+                      </label>
+                      <label className="space-y-2">
+                        <span className="text-sm font-medium">End Date</span>
+                        <Input
+                          type="date"
+                          value={masterTenderForm.endDate}
+                          onChange={(event) => setMasterTenderForm((prev) => ({ ...prev, endDate: event.target.value }))}
+                        />
+                      </label>
+                    </div>
+                    <Button type="submit" disabled={tenderBusyId === "create-master"}>
+                      {tenderBusyId === "create-master" ? "Creating..." : "Create Tender"}
+                    </Button>
+                  </form>
+                ) : panelData.complaints.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No records yet.</p>
                 ) : (
                   panelData.complaints.map((item) => (
@@ -910,9 +1338,54 @@ export default function DashboardPage() {
                           <p className="text-xs text-muted-foreground">
                             {item.complaintId || item.id} | {formatDate(item.submittedAt || item.createdAt)}
                           </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Priority {Number(item.priorityScore || 0).toFixed(1)} / 5 | {item.totalVotes || 0} resident vote(s)
+                          </p>
                         </div>
                         <Badge className={statusTone(item.status)}>{item.status}</Badge>
                       </div>
+                      {(user?.role === "ministry_officer" || user?.role === "department_head") && !item.project && (
+                        <div className="mt-4 space-y-3 rounded-xl border border-border/50 bg-muted/10 p-3">
+                          <p className="text-sm font-medium">Create tender</p>
+                          <div className="grid gap-3 md:grid-cols-2">
+                            <Input
+                              value={tenderDrafts[item.id || item._id]?.title ?? item.title ?? ""}
+                              onChange={(event) => updateTenderDraft(item.id || item._id, "title", event.target.value)}
+                              placeholder="Tender title"
+                            />
+                            <Input
+                              type="number"
+                              min="0"
+                              value={tenderDrafts[item.id || item._id]?.estimatedBudget || ""}
+                              onChange={(event) => updateTenderDraft(item.id || item._id, "estimatedBudget", event.target.value)}
+                              placeholder="Estimated budget"
+                            />
+                            <Input
+                              type="date"
+                              value={tenderDrafts[item.id || item._id]?.startDate || ""}
+                              onChange={(event) => updateTenderDraft(item.id || item._id, "startDate", event.target.value)}
+                            />
+                            <Input
+                              type="date"
+                              value={tenderDrafts[item.id || item._id]?.endDate || ""}
+                              onChange={(event) => updateTenderDraft(item.id || item._id, "endDate", event.target.value)}
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={tenderBusyId === `create-${item.id || item._id}`}
+                            onClick={() => handleCreateTender(item)}
+                          >
+                            {tenderBusyId === `create-${item.id || item._id}` ? "Creating..." : "Create Tender"}
+                          </Button>
+                        </div>
+                      )}
+                      {(user?.role === "ministry_officer" || user?.role === "department_head") && item.project && (
+                        <div className="mt-4 rounded-xl border border-border/50 bg-muted/10 p-3 text-sm text-muted-foreground">
+                          This complaint is already linked to the active project owner, so no new tender is created for it.
+                        </div>
+                      )}
                     </div>
                   ))
                 )}
@@ -923,6 +1396,8 @@ export default function DashboardPage() {
               <h2 className="text-lg font-semibold">
                 {user?.role === "contractor"
                   ? "Available Tenders"
+                  : user?.role === "admin"
+                    ? "Government Tenders"
                   : user?.role === "senior_official"
                     ? "Pending / Recent Tenders"
                     : "Recent Tenders"}
@@ -942,6 +1417,55 @@ export default function DashboardPage() {
                         </div>
                         <Badge className={statusTone(tender.status)}>{tender.status}</Badge>
                       </div>
+                      {(user?.role === "admin" || user?.role === "ministry_officer" || user?.role === "department_head") && (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {tender.status === "approved" && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              disabled={tenderBusyId === `publish-${tender.id || tender._id}`}
+                              onClick={() => handlePublishTender(tender.id || tender._id)}
+                            >
+                              {tenderBusyId === `publish-${tender.id || tender._id}` ? "Publishing..." : "Publish Tender"}
+                            </Button>
+                          )}
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={bidLoadBusyId === (tender.id || tender._id)}
+                            onClick={() => handleLoadTenderBids(tender.id || tender._id)}
+                          >
+                            {bidLoadBusyId === (tender.id || tender._id) ? "Loading bids..." : "View Bids"}
+                          </Button>
+                        </div>
+                      )}
+                      {asList(panelData.bidsByTender[tender.id || tender._id]).length > 0 && (
+                        <div className="mt-4 space-y-2">
+                          {panelData.bidsByTender[tender.id || tender._id].map((bid) => (
+                            <div key={bid.id || bid._id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/50 p-3 text-sm">
+                              <div>
+                                <p className="font-medium">
+                                  Rs. {bid.amount || "N/A"} by {bid.contractor?.companyName || bid.contractor?.name || `Contractor ${bid.contractor || ""}`}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {bid.timeline?.durationDays ? `${bid.timeline.durationDays} days` : "Timeline N/A"} | {bid.status}
+                                </p>
+                              </div>
+                              {(user?.role === "admin" || user?.role === "ministry_officer" || user?.role === "department_head") && tender.status !== "bidding_closed" && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  disabled={selectBidBusyId === (bid.id || bid._id)}
+                                  onClick={() => handleSelectWinningBid(tender.id || tender._id, bid.id || bid._id)}
+                                >
+                                  {selectBidBusyId === (bid.id || bid._id) ? "Selecting..." : "Select Winner"}
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))
                 )}

@@ -1,0 +1,35 @@
+
+> backend@1.0.0 start
+> node server.js
+
+[dotenv@17.3.1] injecting env (11) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+MySQL Connected: localhost:3306/urbangrid
+Server running on port 5052
+Environment: development
+2026-04-19T19:43:10.186Z - POST /api/auth/register - IP: ::1
+2026-04-19T19:43:10.552Z - POST /api/auth/register - IP: ::1
+2026-04-19T19:43:10.873Z - POST /api/auth/register - IP: ::1
+2026-04-19T19:43:11.183Z - POST /api/auth/login - IP: ::1
+2026-04-19T19:43:11.453Z - POST /api/auth/login - IP: ::1
+2026-04-19T19:43:11.767Z - POST /api/auth/login - IP: ::1
+2026-04-19T19:43:12.081Z - POST /api/auth/login - IP: ::1
+2026-04-19T19:43:12.394Z - POST /api/auth/login - IP: ::1
+2026-04-19T19:43:12.700Z - POST /api/auth/login - IP: ::1
+2026-04-19T19:43:13.008Z - POST /api/citizen/complaints - IP: ::1
+info: [object Object] {"service":"urbangrid-audit","timestamp":"2026-04-19T19:43:13.022Z"}
+2026-04-19T19:43:13.026Z - POST /api/citizen/complaints/12/vote - IP: ::1
+info: [object Object] {"service":"urbangrid-audit","timestamp":"2026-04-19T19:43:13.034Z"}
+2026-04-19T19:43:13.035Z - GET /api/citizen/complaints/ward - IP: ::1
+info: [object Object] {"service":"urbangrid-audit","timestamp":"2026-04-19T19:43:13.041Z"}
+2026-04-19T19:43:13.045Z - GET /api/admin/complaints/pending - IP: ::1
+2026-04-19T19:43:13.053Z - PATCH /api/admin/complaints/12/verify - IP: ::1
+2026-04-19T19:43:13.071Z - GET /api/ministry/complaints - IP: ::1
+2026-04-19T19:43:13.079Z - POST /api/ministry/tenders - IP: ::1
+2026-04-19T19:43:13.099Z - PATCH /api/ministry/tenders/3/publish - IP: ::1
+2026-04-19T19:43:13.113Z - GET /api/contractor/tenders/available - IP: ::1
+2026-04-19T19:43:13.118Z - POST /api/contractor/tenders/3/bid - IP: ::1
+2026-04-19T19:43:13.128Z - GET /api/ministry/tenders/3/bids - IP: ::1
+2026-04-19T19:43:13.134Z - POST /api/ministry/tenders/3/bids/2/select - IP: ::1
+2026-04-19T19:43:13.155Z - GET /api/contractor/projects - IP: ::1
+2026-04-19T19:43:13.160Z - GET /api/region/projects - IP: ::1
+2026-04-19T19:43:13.164Z - GET /api/admin/dashboard/stats - IP: ::1
